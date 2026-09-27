@@ -238,6 +238,7 @@
       const p = { nome, funcao: $("#p-funcao").value, registro: $("#p-registro").value.trim(), empresa: $("#p-empresa").value.trim(),
         email: $("#p-email").value.trim(), tel: $("#p-tel").value.trim(), especie: $("#p-especie").value, foto: fotoTemp };
       guardar.gravar("perfil", p);
+      if (logado()) nuvem.salvarPerfil(p).catch(() => toast("Perfil salvo no aparelho; a nuvem não respondeu."));
       if (lerPerfil().foto !== p.foto && p.foto) toast("A foto não coube no armazenamento do navegador");
       const reg = +$("#p-regiao").value;
       if (reg !== guardar.ler("regiao", 0)) { guardar.gravar("regiao", reg); $("#regiao").value = String(reg); carregarClima(REGIOES[reg]); }
@@ -1017,7 +1018,8 @@
     if (i >= 0) ts[i] = reg; else ts.push(reg);
     // A fazenda herda município/UF do talhão quando ainda não tem, e guarda as máquinas informadas.
     const fz = lerFazendas(), f = fz.find((x) => x.id === fid);
-    if (f) { if (!f.municipio && reg.municipio) { f.municipio = reg.municipio; f.uf = f.uf || reg.uf; } f.implementos = reg.implementos; guardar.gravar("fazendas", fz); }
+    if (f) { if (!f.municipio && reg.municipio) { f.municipio = reg.municipio; f.uf = f.uf || reg.uf; } f.implementos = reg.implementos; if (logado()) f.pendente = true; guardar.gravar("fazendas", fz); }
+    if (logado()) reg.pendente = true;
     guardar.gravar("talhoes", ts);
     estado.talhaoId = reg.id;
     $("#t-nome").value = reg.nome;
@@ -1025,8 +1027,11 @@
     listarSalvos();
     const fn = nomeFazenda(fid);
     atualizarRotuloTalhao();
-    $("#t-salvo-msg").textContent = (i >= 0 ? "Atualizado" : "Salvo") + (fn ? " em " + fn : "") + " neste navegador.";
+    const feito = (i >= 0 ? "Atualizado" : "Salvo") + (fn ? " em " + fn : "");
     toast(reg.nome + (i >= 0 ? " atualizado" : " salvo"));
+    if (!logado()) { $("#t-salvo-msg").textContent = feito + " neste aparelho."; return; }
+    $("#t-salvo-msg").textContent = feito + ". Enviando…";
+    sincronizar(true).then((ok) => { $("#t-salvo-msg").textContent = feito + (ok ? " na sua conta." : " no aparelho. Envia quando houver conexão."); atualizarRotuloTalhao(); });
   }
 
   function totaisDe(ts) {
@@ -1109,7 +1114,8 @@
           linhas.map((l) => '<div class="barra-h"><span>' + esc(l.t.nome) + '</span><div class="trilho"><span class="' + (l === melhor ? "melhor" : "") + '" style="width:' + (l.producao / maxProd * 100) + '%"></span></div><b class="num">' + fmt(l.producao, 0) + " sc</b></div>").join("") + "</div>"
         : '<p class="vazio">Nenhum talhão nesta fazenda ainda. Toque em “Novo talhão nesta fazenda” para delimitar o primeiro.</p>') +
       "</section>";
-    if (ts.length) setTimeout(() => mapaFazenda(ts), 30);
+    clearTimeout(estado.timerMapaFaz);
+    if (ts.length) estado.timerMapaFaz = setTimeout(() => mapaFazenda(ts), 30);
   }
 
   let mapaFaz = null;
@@ -1184,8 +1190,10 @@
       const dados = { nome, proprietario: $("#f-prop").value.trim(), telefone: $("#f-tel").value.trim(), municipio: $("#f-mun").value.trim(),
         uf: $("#f-uf").value, areaTotal: +$("#f-area").value || null, car: $("#f-car").value.trim(), obs: $("#f-obs").value.trim() };
       const i = fs.findIndex((x) => x.id === estado.fazEditando);
-      if (i >= 0) fs[i] = Object.assign(fs[i], dados); else fs.push(Object.assign({ id: "f" + Date.now(), criado: new Date().toISOString() }, dados));
+      if (i >= 0) fs[i] = Object.assign(fs[i], dados, logado() ? { pendente: true } : {});
+      else fs.push(Object.assign({ id: "f" + Date.now(), criado: new Date().toISOString() }, dados));
       guardar.gravar("fazendas", fs);
+      sincronizar();
       $("#form-faz").hidden = true;
       preencherSelectFazendas($("#t-fazenda").value);
       renderFazendas(); listarSalvos();
@@ -1205,9 +1213,11 @@
         if (acao === "excluir") {
           guardar.gravar("fazendas", lerFazendas().filter((x) => x.id !== id));
           guardar.gravar("talhoes", lerTalhoes().map((t) => (t.fazendaId === id ? Object.assign(t, { fazendaId: null }) : t)));
+          excluirNaNuvem("fazendas", id);
           estado.fazendaSel = null; toast("Fazenda excluída. Os talhões ficaram sem fazenda.");
         } else {
           guardar.gravar("talhoes", lerTalhoes().filter((t) => String(t.id) !== id));
+          excluirNaNuvem("talhoes", id);
           if (String(estado.talhaoId) === id) novoTalhao();
           toast("Talhão excluído");
         }
@@ -1310,6 +1320,116 @@
     $("#btn-not-atualizar").addEventListener("click", carregarNoticias);
   }
 
+
+  // ================================================================
+  // CONTA E NUVEM (Supabase): o app grava no aparelho e sincroniza com a conta
+  // ================================================================
+  const nuvem = window.AeraNuvem || null;
+  const logado = () => !!(nuvem && nuvem.usuario());
+  let sincronizando = null;
+
+  // Envia o que está pendente, baixa tudo da conta e atualiza a tela. Devolve true se chegou ao banco.
+  async function sincronizar(silencioso) {
+    if (!logado()) return false;
+    if (sincronizando) return sincronizando;
+    $("#conta-sinc").textContent = "Sincronizando…";
+    sincronizando = (async () => {
+      try {
+        const troca = await nuvem.enviarPendentes(lerFazendas(), lerTalhoes(), guardar.ler("exclusoes", []));
+        guardar.gravar("exclusoes", []);
+        const d = await nuvem.baixarTudo();
+        guardar.gravar("fazendas", d.fazendas); guardar.gravar("talhoes", d.talhoes);
+        // Ids locais viram ids do banco: atualiza o que estiver aberto na tela.
+        if (estado.talhaoId != null && troca[estado.talhaoId]) estado.talhaoId = troca[estado.talhaoId];
+        if (estado.fazendaSel && troca[estado.fazendaSel]) estado.fazendaSel = troca[estado.fazendaSel];
+        const sel = $("#t-fazenda").value; preencherSelectFazendas(troca[sel] || sel);
+        listarSalvos(); if (location.hash === "#fazendas") renderFazendas();
+        guardar.gravar("sinc", new Date().toISOString());
+        pintarConta();
+        return true;
+      } catch (e) {
+        pintarConta("Não sincronizou: " + nuvem.traduzir(e));
+        if (!silencioso) toast(nuvem.traduzir(e));
+        return false;
+      } finally { sincronizando = null; }
+    })();
+    return sincronizando;
+  }
+  function excluirNaNuvem(tabela, id) {
+    if (!logado() || !nuvem.ehUuid(id)) return;
+    guardar.gravar("exclusoes", guardar.ler("exclusoes", []).concat([{ tabela, id }]));
+    sincronizar();
+  }
+
+  function pintarConta(msg) {
+    const u = nuvem && nuvem.usuario();
+    $("#conta-fora").hidden = !!u; $("#conta-dentro").hidden = !u;
+    $("#conta-chip").textContent = u ? "Na nuvem" : "Só neste aparelho";
+    $("#conta-chip").className = "chip" + (u ? "" : " atencao");
+    $("#aviso-nuvem").hidden = !!u || !nuvem;
+    if (u) {
+      $("#conta-email").textContent = u.email;
+      const t = guardar.ler("sinc", null);
+      $("#conta-sinc").textContent = t ? "Sincronizado em " + new Date(t).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "Ainda não sincronizado";
+    }
+    $("#conta-msg").textContent = msg || "";
+  }
+
+  // Ao entrar: completa o perfil com o que está no banco (ou envia o do aparelho) e sincroniza.
+  async function aoEntrar() {
+    pintarConta("Conectado. Enviando os dados deste aparelho…");
+    try {
+      const r = await nuvem.lerPerfil(), p = lerPerfil();
+      if (r && r.nome && !p.nome) {
+        guardar.gravar("perfil", Object.assign({}, p, { nome: r.nome, funcao: r.funcao || p.funcao, registro: r.registro || "", empresa: r.empresa || "",
+          email: r.email || "", tel: r.telefone || "", especie: r.especie || p.especie }));
+        mostrarPerfil(); preencherFormPerfil();
+      } else if (p.nome) await nuvem.salvarPerfil(p);
+    } catch (e) { /* o perfil não impede a sincronização */ }
+    const ok = await sincronizar();
+    if (ok) pintarConta("Fazendas e talhões guardados na sua conta.");
+  }
+
+  function iniciarConta() {
+    if (!nuvem || !nuvem.disponivel()) { $("#conta").hidden = true; return; }
+    const pegar = () => ({ email: $("#c-email").value.trim(), senha: $("#c-senha").value });
+    const ocupado = (sim) => { $("#btn-entrar").disabled = sim; $("#btn-criar").disabled = sim; };
+    $("#conta-fora").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const { email, senha } = pegar();
+      if (!email || !senha) return pintarConta("Informe e-mail e senha.");
+      ocupado(true); pintarConta("Entrando…");
+      try { await nuvem.entrar(email, senha); $("#c-senha").value = ""; await aoEntrar(); }
+      catch (err) { pintarConta(nuvem.traduzir(err)); }
+      finally { ocupado(false); }
+    });
+    $("#btn-criar").addEventListener("click", async () => {
+      const { email, senha } = pegar();
+      if (!email || senha.length < 6) return pintarConta("Informe um e-mail e uma senha com pelo menos 6 caracteres.");
+      ocupado(true); pintarConta("Criando a conta…");
+      try {
+        const r = await nuvem.criarConta(email, senha, lerPerfil().nome || "");
+        $("#c-senha").value = "";
+        if (r.confirmar) pintarConta("Conta criada. Abra o link que chegou em " + email + " e depois toque em Entrar.");
+        else await aoEntrar();
+      } catch (err) { pintarConta(nuvem.traduzir(err)); }
+      finally { ocupado(false); }
+    });
+    $("#btn-sinc").addEventListener("click", async () => { if (await sincronizar()) pintarConta("Tudo sincronizado."); });
+    $("#btn-sair").addEventListener("click", async () => {
+      await nuvem.sair();
+      // Os dados da conta saem deste aparelho; o que era só local continua.
+      guardar.gravar("fazendas", lerFazendas().filter((f) => !f.nuvem));
+      guardar.gravar("talhoes", lerTalhoes().filter((t) => !t.nuvem));
+      guardar.gravar("sinc", null);
+      preencherSelectFazendas(""); listarSalvos(); renderFazendas();
+      pintarConta("Você saiu da conta.");
+    });
+    pintarConta();
+    nuvem.iniciar((u) => { pintarConta(); }).then((u) => { pintarConta(); if (u) sincronizar(true); });
+    window.addEventListener("online", () => sincronizar(true));
+  }
+
   // ---------- tela de entrada ----------
   function abrirApp() {
     const splash = $("#splash");
@@ -1326,6 +1446,7 @@
   iniciarTalhao();
   iniciarFazendas();
   iniciarNoticias();
+  iniciarConta();
   definirEspecie(lerPerfil().especie || "arabica");
   rota();
   abrirApp();

@@ -19,6 +19,7 @@ for nome, v in VERSOES.items():
     corpo = ler(src / "index.template.html").replace("<title>AERA Campo</title>", "<title>" + v["titulo"] + "</title>")
     for k, val in {"{{MAPA_CSS}}": v["css"], "{{APP_CSS}}": ler(src / "app.css"), "{{MAPA_LIB}}": v["lib"],
                    "{{JSZIP}}": ler(vendor / "jszip.min.js").replace("</script", "<\\/script"), "{{MAPA_JS}}": v["js"],
+                   "{{SUPABASE_JS}}": (ler(vendor / "supabase.js") + "\n" + ler(src / "nuvem.js")).replace("</script", "<\\/script"),
                    "{{IMAGENS_JS}}": ler(src / "imagens.js"), "{{EXPORT_JS}}": ler(src / "export.js"),
                    "{{APP_JS}}": ler(src / "app.js"), "{{LOGO}}": logo}.items():
         corpo = corpo.replace(k, val)

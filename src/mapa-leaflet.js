@@ -61,7 +61,7 @@ window.AeraMapa = (function () {
           if (t.dica) pg.bindTooltip(t.dica, { sticky: true });
           if (t.onClick) pg.on("click", t.onClick);
         });
-        if (lista.length) m.fitBounds(grupo.getBounds().pad(0.25));
+        if (lista.length) m.fitBounds(grupo.getBounds().pad(0.25), { animate: false });
       },
       remover: () => m.remove(),
     };

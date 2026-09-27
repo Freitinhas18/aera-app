@@ -22,10 +22,12 @@ As bibliotecas ficam embutidas (pasta `vendor/`), então o mapa e a exportação
 ## Estrutura
 - `src/index.template.html` telas · `src/app.css` marca (manual v1.0) · `src/app.js` lógica
 - `src/mapa-*.js` o mapa de cada versão, com a mesma interface (`window.AeraMapa`)
+- `src/nuvem.js` conta e sincronização com o Supabase
 - `src/export.js` .docx/.xlsx · `src/imagens.js` croqui e gráfico
 - `supabase/` banco (Postgres + PostGIS) com permissões por fazenda; ver `supabase/README.md`
 - `exemplos/` relatório e planilhas de exemplo
 
 ## Estado atual
-- Fazendas e talhões ainda ficam no navegador (localStorage, com backup .json). A ligação com o Supabase é o próximo passo.
+- Conta de usuário (e-mail e senha) no Supabase, na aba Perfil. Logado, fazendas, talhões, análises e perfil vão para o banco; sem conta ou sem sinal, tudo fica no navegador e é enviado quando a conexão volta (`src/nuvem.js`).
+- Ao entrar pela primeira vez, o que já estava salvo no aparelho é enviado para a conta.
 - Faixas de produtividade por cenário e parâmetros de colheita são de protótipo, montados a partir das referências do app; validar com agrônomo.

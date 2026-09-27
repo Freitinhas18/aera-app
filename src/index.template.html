@@ -130,6 +130,29 @@
       <h1 id="t-perfil2">Quem está usando o AERA</h1>
       <p class="mudo" id="perfil-intro">Esses dados personalizam a saudação, o clima e os padrões da análise de talhão.</p>
     </div>
+    <section class="bloco conta" id="conta" aria-labelledby="t-conta">
+      <div class="bloco-cab"><h2 id="t-conta">Conta AERA</h2><span class="chip atencao" id="conta-chip">Só neste aparelho</span></div>
+      <form id="conta-fora" class="conta-form" novalidate>
+        <p class="mudo">Entre para guardar fazendas e talhões na nuvem e abrir de qualquer aparelho.</p>
+        <div class="grade2">
+          <div class="campo"><label for="c-email">E-mail</label><input type="email" id="c-email" autocomplete="username" placeholder="nome@exemplo.com"></div>
+          <div class="campo"><label for="c-senha">Senha</label><input type="password" id="c-senha" autocomplete="current-password" placeholder="Mínimo 6 caracteres"></div>
+        </div>
+        <div class="linha">
+          <button class="btn pri" id="btn-entrar" type="submit">Entrar</button>
+          <button class="btn" id="btn-criar" type="button">Criar conta</button>
+        </div>
+      </form>
+      <div id="conta-dentro" class="conta-form" hidden>
+        <p><b id="conta-email"></b><br><span class="mudo" id="conta-sinc"></span></p>
+        <div class="linha">
+          <button class="btn" id="btn-sinc" type="button">Sincronizar agora</button>
+          <button class="btn peq" id="btn-sair" type="button">Sair</button>
+        </div>
+      </div>
+      <small class="mudo" id="conta-msg"></small>
+    </section>
+
     <form class="perfil-grade" id="form-perfil" novalidate>
       <section class="bloco perfil-foto" aria-label="Foto">
         <span class="avatar avatar-lg" data-avatar aria-hidden="true"></span>
@@ -198,6 +221,7 @@
       <div>
         <p class="rotulo">Cadastro e análise</p>
         <h1 id="t-faz">Fazendas</h1>
+        <p class="aviso-nuvem" id="aviso-nuvem" hidden>Salvo só neste aparelho. <a href="#perfil">Entre na sua conta</a> para guardar na nuvem.</p>
       </div>
       <div class="linha">
         <button class="btn peq" id="btn-backup" type="button">Exportar backup (.json)</button>
@@ -406,6 +430,9 @@
 {{MAPA_LIB}}
 <script>
 {{JSZIP}}
+</script>
+<script>
+{{SUPABASE_JS}}
 </script>
 <script>
 {{MAPA_JS}}
