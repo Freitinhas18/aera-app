@@ -17,6 +17,8 @@ Gera em `dist/` um arquivo único que abre direto no navegador, sem servidor:
 - `aera-maplibre.html`: MapLibre GL + Esri / OpenFreeMap
 - `aera-google.html`: Google Maps (pede a chave da Maps JavaScript API)
 
+No ar: https://freitinhas18.github.io/aera-app/ (cada push na `main` publica de novo, via `.github/workflows/pages.yml`).
+
 As bibliotecas ficam embutidas (pasta `vendor/`), então o mapa e a exportação não dependem de CDN.
 
 ## Estrutura
