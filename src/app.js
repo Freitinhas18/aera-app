@@ -1,4 +1,4 @@
-/* AERA · esqueleto do app (HTML + JS puro, Leaflet para o mapa, Open-Meteo para clima). */
+/* AERA · esqueleto do app (HTML + JS puro, MapLibre GL + satélite Esri para o mapa, Open-Meteo para clima). */
 (function () {
   "use strict";
 
@@ -524,7 +524,7 @@
   };
   const PADRAO_PTS = [[-18.9598, -47.0092], [-18.9601, -47.0051], [-18.9627, -47.0047], [-18.9630, -47.0089]];
 
-  // O mapa vem de window.AeraMapa (Leaflet, MapLibre ou Google, conforme a versão do app).
+  // O mapa vem de window.AeraMapa (src/mapa.js, MapLibre GL).
   // A área é calculada pelo próprio AERA (medirPoligono), então funciona mesmo se o mapa falhar.
   function iniciarMapa() {
     if (estado.mapaIniciado) { if (estado.mapa) setTimeout(() => estado.mapa.redimensionar(), 50); return; }
@@ -626,8 +626,7 @@
     const areaHa = med.area / 10000, perim = med.perim;
 
     $("#m-area").innerHTML = ok ? fmt(areaHa, 2) + " <small>ha</small>" : "--";
-    const api = ok && estado.mapa && estado.mapa.areaApi ? estado.mapa.areaApi(estado.pts) : null;
-    $("#m-area2").textContent = ok ? "≈ " + fmt(areaHa / 4.84, 2) + " alqueires mineiros" + (api ? " · Google: " + fmt(api / 10000, 2) + " ha" : "") : "Delimite o talhão";
+    $("#m-area2").textContent = ok ? "≈ " + fmt(areaHa / 4.84, 2) + " alqueires mineiros" : "Delimite o talhão";
     $("#mapa-area").hidden = !ok;
     $("#mapa-area").innerHTML = ok ? "<b>" + fmt(areaHa, 2) + " ha</b> · " + fmt(perim, 0) + " m" : "";
     $("#m-perim").innerHTML = ok ? fmt(perim, 0) + " <small>m</small>" : "--";

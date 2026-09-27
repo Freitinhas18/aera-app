@@ -12,10 +12,9 @@ App web para agrônomos e consultores de café (AERA · Agricultural Digital Eng
 ```
 python3 build.py
 ```
-Gera em `dist/` um arquivo único que abre direto no navegador, sem servidor:
-- `index.html` / `aera-leaflet.html`: Leaflet + imagens Esri (padrão)
-- `aera-maplibre.html`: MapLibre GL + Esri / OpenFreeMap
-- `aera-google.html`: Google Maps (pede a chave da Maps JavaScript API)
+Gera `dist/index.html`, um arquivo único que abre direto no navegador, sem servidor.
+
+Mapa: MapLibre GL (WebGL) com a imagem de satélite Esri World Imagery, sem chave e sem custo; mapa de ruas vetorial do OpenFreeMap.
 
 No ar: https://freitinhas18.github.io/aera-app/ (cada push na `main` publica de novo, via `.github/workflows/pages.yml`).
 
@@ -23,7 +22,7 @@ As bibliotecas ficam embutidas (pasta `vendor/`), então o mapa e a exportação
 
 ## Estrutura
 - `src/index.template.html` telas · `src/app.css` marca (manual v1.0) · `src/app.js` lógica
-- `src/mapa-*.js` o mapa de cada versão, com a mesma interface (`window.AeraMapa`)
+- `src/mapa.js` o mapa (`window.AeraMapa`); o resto do app só usa essa interface, então trocar de biblioteca mexe só nesse arquivo
 - `src/nuvem.js` conta e sincronização com o Supabase
 - `src/export.js` .docx/.xlsx · `src/imagens.js` croqui e gráfico
 - `supabase/` banco (Postgres + PostGIS) com permissões por fazenda; ver `supabase/README.md`
