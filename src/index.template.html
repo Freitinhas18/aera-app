@@ -124,6 +124,30 @@
   </section>
 
   <!-- ================= PERFIL ================= -->
+  <section class="tela tela-entrar" id="tela-entrar" aria-labelledby="t-entrar" hidden>
+    <div class="bloco entrar-caixa">
+      <img class="entrar-logo" src="{{LOGO}}" alt="AERA Agricultural Digital Engineering" width="560" height="126">
+      <p class="rotulo" id="entrar-passo">Passo 1 de 2</p>
+      <h1 id="t-entrar">Crie sua conta</h1>
+      <div class="seg entrar-seg" role="group" aria-label="Criar conta ou entrar" id="seg-conta">
+        <button type="button" data-modo="criar" aria-pressed="true">Criar conta</button>
+        <button type="button" data-modo="entrar" aria-pressed="false">Já tenho conta</button>
+      </div>
+      <form id="conta-fora" class="conta-form" novalidate>
+        <div class="campo"><label for="c-email">E-mail</label><input type="email" id="c-email" autocomplete="username" placeholder="nome@exemplo.com" inputmode="email"></div>
+        <div class="campo"><label for="c-senha">Senha</label><input type="password" id="c-senha" autocomplete="new-password" placeholder="Mínimo 6 caracteres"></div>
+        <div class="campo" id="campo-senha2"><label for="c-senha2">Repita a senha</label><input type="password" id="c-senha2" autocomplete="new-password"></div>
+        <button class="btn pri" id="btn-conta" type="submit">Criar conta</button>
+        <small class="entrar-msg" id="entrar-msg" role="status"></small>
+      </form>
+      <div id="entrar-confirmar" class="entrar-confirmar" hidden>
+        <p>Enviamos um link de confirmação para <b id="entrar-email"></b>. Abra o e-mail, toque no link e volte aqui para entrar com sua senha.</p>
+        <button type="button" class="btn pri" id="btn-ja-confirmei">Já confirmei, entrar</button>
+      </div>
+      <a href="#inicio" class="entrar-sem" id="lk-sem-conta">Usar sem conta, só neste aparelho</a>
+    </div>
+  </section>
+
   <section class="tela" id="tela-perfil" aria-labelledby="t-perfil2" hidden>
     <div>
       <p class="rotulo" id="perfil-rotulo">Configurações</p>
@@ -131,18 +155,11 @@
       <p class="mudo" id="perfil-intro">Esses dados personalizam a saudação, o clima e os padrões da análise de talhão.</p>
     </div>
     <section class="bloco conta" id="conta" aria-labelledby="t-conta">
-      <div class="bloco-cab"><h2 id="t-conta">Conta AERA</h2><span class="chip atencao" id="conta-chip">Só neste aparelho</span></div>
-      <form id="conta-fora" class="conta-form" novalidate>
-        <p class="mudo">Entre para guardar fazendas e talhões na nuvem e abrir de qualquer aparelho.</p>
-        <div class="grade2">
-          <div class="campo"><label for="c-email">E-mail</label><input type="email" id="c-email" autocomplete="username" placeholder="nome@exemplo.com"></div>
-          <div class="campo"><label for="c-senha">Senha</label><input type="password" id="c-senha" autocomplete="current-password" placeholder="Mínimo 6 caracteres"></div>
-        </div>
-        <div class="linha">
-          <button class="btn pri" id="btn-entrar" type="submit">Entrar</button>
-          <button class="btn" id="btn-criar" type="button">Criar conta</button>
-        </div>
-      </form>
+      <div class="bloco-cab"><h2 id="t-conta">Conta AERA</h2><span class="chip atencao" id="conta-chip">Sem conta</span></div>
+      <div id="conta-sem" class="conta-form">
+        <p class="mudo">Crie uma conta para guardar seu perfil, fazendas e talhões no banco e abrir de qualquer aparelho.</p>
+        <div class="linha"><a class="btn pri" href="#entrar">Entrar ou criar conta</a></div>
+      </div>
       <div id="conta-dentro" class="conta-form" hidden>
         <p><b id="conta-email"></b><br><span class="mudo" id="conta-sinc"></span></p>
         <div class="linha">

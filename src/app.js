@@ -32,16 +32,18 @@
   ];
 
   // ---------- navegação por abas (#inicio / #talhao) ----------
-  const TELAS = ["inicio", "talhao", "fazendas", "noticias", "perfil"];
+  const TELAS = ["inicio", "talhao", "fazendas", "noticias", "perfil", "entrar"];
   function rota() {
     const h = location.hash.replace("#", "");
     const tela = TELAS.includes(h) ? h : "inicio";
     TELAS.forEach((t) => { $("#tela-" + t).hidden = t !== tela; });
+    document.body.classList.toggle("modo-entrar", tela === "entrar");
     document.querySelectorAll(".nav a").forEach((a) => {
       if (a.dataset.tela === tela) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
     });
     if (tela === "talhao") iniciarMapa();
     if (tela === "perfil") preencherFormPerfil();
+    if (tela === "entrar") abrirEntrar();
     if (tela === "fazendas") renderFazendas();
     if (tela === "noticias" && !noticiasCarregadas) carregarNoticias();
     if (tela === "talhao" && estado.fazendaPre) { const f = estado.fazendaPre; estado.fazendaPre = null; setTimeout(() => novoTalhaoNaFazenda(f), 80); }
@@ -189,10 +191,18 @@
     $("#p-tel").value = p.tel || "";
     $("#p-regiao").value = String(guardar.ler("regiao", 0));
     $("#p-especie").value = p.especie || "arabica";
-    const novo = !p.nome;
-    $("#perfil-rotulo").textContent = novo ? "Primeiro acesso" : "Configurações";
+    const novo = !p.nome, u = logado() ? nuvem.usuario() : null;
+    // Logado, o e-mail do perfil é o da conta.
+    if (u) $("#p-email").value = u.email;
+    $("#p-email").readOnly = !!u;
+    // Passo 2 do cadastro: conta criada, dados ainda não preenchidos.
+    const completar = !!u && novo;
+    $("#conta").hidden = completar;
+    $("#perfil-rotulo").textContent = completar ? "Passo 2 de 2" : novo ? "Primeiro acesso" : "Configurações";
     $("#perfil-rotulo").classList.toggle("primeiro-acesso", novo);
-    $("#t-perfil2").textContent = novo ? "Vamos configurar seu perfil" : "Quem está usando o AERA";
+    $("#t-perfil2").textContent = completar ? "Complete seu cadastro" : novo ? "Vamos configurar seu perfil" : "Quem está usando o AERA";
+    $("#perfil-intro").textContent = completar ? "Sua conta foi criada. Preencha seus dados: eles ficam guardados no seu perfil, no banco." :
+      "Esses dados personalizam a saudação, o clima e os padrões da análise de talhão.";
     $("#perfil-msg").textContent = "";
     pintarAvatares(p);
   }
@@ -231,20 +241,25 @@
       pintarAvatares(Object.assign({}, lerPerfil(), { nome: $("#p-nome").value, foto: null }));
     });
     $("#p-nome").addEventListener("input", () => { if (!fotoTemp) pintarAvatares({ nome: $("#p-nome").value }); });
-    $("#form-perfil").addEventListener("submit", (e) => {
+    $("#form-perfil").addEventListener("submit", async (e) => {
       e.preventDefault();
       const nome = $("#p-nome").value.trim();
       if (!nome) { $("#perfil-msg").textContent = "Informe seu nome para continuar."; $("#p-nome").focus(); return; }
       const p = { nome, funcao: $("#p-funcao").value, registro: $("#p-registro").value.trim(), empresa: $("#p-empresa").value.trim(),
         email: $("#p-email").value.trim(), tel: $("#p-tel").value.trim(), especie: $("#p-especie").value, foto: fotoTemp };
       guardar.gravar("perfil", p);
-      if (logado()) nuvem.salvarPerfil(p).catch(() => toast("Perfil salvo no aparelho; a nuvem não respondeu."));
+      let ondeFicou = "Perfil salvo neste aparelho";
+      if (logado()) {
+        $("#perfil-msg").textContent = "Salvando na sua conta…";
+        try { await nuvem.salvarPerfil(p); ondeFicou = "Perfil salvo na sua conta"; }
+        catch (err) { ondeFicou = "Perfil salvo no aparelho. A conta não respondeu: " + nuvem.traduzir(err); }
+      }
       if (lerPerfil().foto !== p.foto && p.foto) toast("A foto não coube no armazenamento do navegador");
       const reg = +$("#p-regiao").value;
       if (reg !== guardar.ler("regiao", 0)) { guardar.gravar("regiao", reg); $("#regiao").value = String(reg); carregarClima(REGIOES[reg]); }
       if (!estado.mapa) definirEspecie(p.especie);
       mostrarPerfil();
-      toast("Perfil salvo");
+      toast(ondeFicou);
       location.hash = "inicio";
     });
   }
@@ -1362,8 +1377,8 @@
 
   function pintarConta(msg) {
     const u = nuvem && nuvem.usuario();
-    $("#conta-fora").hidden = !!u; $("#conta-dentro").hidden = !u;
-    $("#conta-chip").textContent = u ? "Na nuvem" : "Só neste aparelho";
+    $("#conta-sem").hidden = !!u; $("#conta-dentro").hidden = !u;
+    $("#conta-chip").textContent = u ? "Conectado" : "Sem conta";
     $("#conta-chip").className = "chip" + (u ? "" : " atencao");
     $("#aviso-nuvem").hidden = !!u || !nuvem;
     if (u) {
@@ -1374,46 +1389,81 @@
     $("#conta-msg").textContent = msg || "";
   }
 
-  // Ao entrar: completa o perfil com o que está no banco (ou envia o do aparelho) e sincroniza.
-  async function aoEntrar() {
-    pintarConta("Conectado. Enviando os dados deste aparelho…");
+  // Ao entrar: traz o perfil do banco (ou envia o do aparelho), sincroniza e,
+  // se o cadastro ainda não tem nome, abre o passo 2 (completar cadastro).
+  async function aoEntrar(vindoDaTelaEntrar) {
+    pintarConta("Conectado. Sincronizando…");
     try {
       const r = await nuvem.lerPerfil(), p = lerPerfil();
-      if (r && r.nome && !p.nome) {
+      if (r && r.nome) {
         guardar.gravar("perfil", Object.assign({}, p, { nome: r.nome, funcao: r.funcao || p.funcao, registro: r.registro || "", empresa: r.empresa || "",
-          email: r.email || "", tel: r.telefone || "", especie: r.especie || p.especie }));
-        mostrarPerfil(); preencherFormPerfil();
+          email: r.email || "", tel: r.telefone || "", especie: r.especie || p.especie || "arabica" }));
+        mostrarPerfil();
       } else if (p.nome) await nuvem.salvarPerfil(p);
     } catch (e) { /* o perfil não impede a sincronização */ }
-    const ok = await sincronizar();
-    if (ok) pintarConta("Fazendas e talhões guardados na sua conta.");
+    const ok = await sincronizar(true);
+    pintarConta(ok ? "Fazendas e talhões guardados na sua conta." : "");
+    if (!lerPerfil().nome) location.hash = "perfil";
+    else if (vindoDaTelaEntrar) location.hash = "inicio";
+  }
+
+  // ---------- tela Entrar / Criar conta (passo 1) ----------
+  let modoConta = "criar";
+  function msgEntrar(txt, erro) { $("#entrar-msg").textContent = txt || ""; $("#entrar-msg").classList.toggle("erro", !!erro); }
+  function definirModoConta(m) {
+    modoConta = m;
+    const criar = m === "criar";
+    $("#seg-conta").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.modo === m)));
+    $("#t-entrar").textContent = criar ? "Crie sua conta" : "Entre na sua conta";
+    $("#entrar-passo").hidden = !criar;
+    $("#campo-senha2").hidden = !criar;
+    $("#btn-conta").textContent = criar ? "Criar conta" : "Entrar";
+    $("#c-senha").setAttribute("autocomplete", criar ? "new-password" : "current-password");
+    msgEntrar("");
+  }
+  function abrirEntrar() {
+    if (logado()) { location.hash = "perfil"; return; }
+    $("#conta-fora").hidden = false; $("#entrar-confirmar").hidden = true;
+    const pend = guardar.ler("emailPendente", "");
+    if (pend) { $("#c-email").value = pend; definirModoConta("entrar"); }
   }
 
   function iniciarConta() {
     if (!nuvem || !nuvem.disponivel()) { $("#conta").hidden = true; return; }
-    const pegar = () => ({ email: $("#c-email").value.trim(), senha: $("#c-senha").value });
-    const ocupado = (sim) => { $("#btn-entrar").disabled = sim; $("#btn-criar").disabled = sim; };
+    const ocupado = (sim) => { $("#btn-conta").disabled = sim; };
+    $("#seg-conta").addEventListener("click", (e) => { const b = e.target.closest("button[data-modo]"); if (b) definirModoConta(b.dataset.modo); });
     $("#conta-fora").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const { email, senha } = pegar();
-      if (!email || !senha) return pintarConta("Informe e-mail e senha.");
-      ocupado(true); pintarConta("Entrando…");
-      try { await nuvem.entrar(email, senha); $("#c-senha").value = ""; await aoEntrar(); }
-      catch (err) { pintarConta(nuvem.traduzir(err)); }
-      finally { ocupado(false); }
-    });
-    $("#btn-criar").addEventListener("click", async () => {
-      const { email, senha } = pegar();
-      if (!email || senha.length < 6) return pintarConta("Informe um e-mail e uma senha com pelo menos 6 caracteres.");
-      ocupado(true); pintarConta("Criando a conta…");
+      const email = $("#c-email").value.trim(), senha = $("#c-senha").value;
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { msgEntrar("Informe um e-mail válido.", true); return $("#c-email").focus(); }
+      if (senha.length < 6) { msgEntrar("A senha precisa ter pelo menos 6 caracteres.", true); return $("#c-senha").focus(); }
+      if (modoConta === "criar" && senha !== $("#c-senha2").value) { msgEntrar("As duas senhas não são iguais.", true); return $("#c-senha2").focus(); }
+      ocupado(true); msgEntrar(modoConta === "criar" ? "Criando a conta…" : "Entrando…");
       try {
-        const r = await nuvem.criarConta(email, senha, lerPerfil().nome || "");
-        $("#c-senha").value = "";
-        if (r.confirmar) pintarConta("Conta criada. Abra o link que chegou em " + email + " e depois toque em Entrar.");
-        else await aoEntrar();
-      } catch (err) { pintarConta(nuvem.traduzir(err)); }
+        if (modoConta === "criar") {
+          const r = await nuvem.criarConta(email, senha);
+          $("#c-senha").value = $("#c-senha2").value = "";
+          if (r.confirmar) {
+            guardar.gravar("emailPendente", email);
+            $("#entrar-email").textContent = email;
+            $("#conta-fora").hidden = true; $("#entrar-confirmar").hidden = false;
+            return;
+          }
+        } else {
+          await nuvem.entrar(email, senha);
+          $("#c-senha").value = "";
+        }
+        guardar.gravar("emailPendente", ""); guardar.gravar("semConta", false);
+        msgEntrar("");
+        await aoEntrar(true);
+      } catch (err) { msgEntrar(nuvem.traduzir(err), true); }
       finally { ocupado(false); }
     });
+    $("#btn-ja-confirmei").addEventListener("click", () => {
+      $("#entrar-confirmar").hidden = true; $("#conta-fora").hidden = false;
+      definirModoConta("entrar"); $("#c-senha").focus();
+    });
+    $("#lk-sem-conta").addEventListener("click", () => guardar.gravar("semConta", true));
     $("#btn-sinc").addEventListener("click", async () => { if (await sincronizar()) pintarConta("Tudo sincronizado."); });
     $("#btn-sair").addEventListener("click", async () => {
       await nuvem.sair();
@@ -1421,11 +1471,11 @@
       guardar.gravar("fazendas", lerFazendas().filter((f) => !f.nuvem));
       guardar.gravar("talhoes", lerTalhoes().filter((t) => !t.nuvem));
       guardar.gravar("sinc", null);
-      preencherSelectFazendas(""); listarSalvos(); renderFazendas();
+      preencherSelectFazendas(""); listarSalvos(); renderFazendas(); preencherFormPerfil();
       pintarConta("Você saiu da conta.");
     });
     pintarConta();
-    nuvem.iniciar((u) => { pintarConta(); }).then((u) => { pintarConta(); if (u) sincronizar(true); });
+    nuvem.iniciar(() => { pintarConta(); }).then((u) => { pintarConta(); if (u) sincronizar(true); });
     window.addEventListener("online", () => sincronizar(true));
   }
 
@@ -1436,7 +1486,9 @@
     setTimeout(() => {
       splash.classList.add("saindo");
       setTimeout(() => splash.remove(), 600);
-      if (!lerPerfil().nome && location.hash !== "#perfil") location.hash = "perfil"; // primeiro acesso
+      // Primeiro acesso: criar conta (passo 1) e depois completar o cadastro (passo 2).
+      if (!lerPerfil().nome && !logado() && nuvem && nuvem.disponivel() && !guardar.ler("semConta", false)) location.hash = "entrar";
+      else if (!lerPerfil().nome && location.hash !== "#perfil") location.hash = "perfil";
     }, semMovimento ? 700 : 2100);
   }
 

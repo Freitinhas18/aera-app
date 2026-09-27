@@ -19,6 +19,8 @@ window.AeraNuvem = (function () {
     const m = (e && (e.message || e.msg || e.error_description)) || String(e);
     if (/Invalid login credentials/i.test(m)) return "E-mail ou senha incorretos.";
     if (/Email not confirmed/i.test(m)) return "Confirme o e-mail pelo link que o Supabase enviou e tente de novo.";
+    if (/Signups not allowed/i.test(m)) return "O cadastro de contas está desligado no Supabase (Authentication > Sign In / Providers).";
+    if (/rate limit/i.test(m)) return "Muitas tentativas seguidas. Espere alguns minutos e tente de novo.";
     if (/User already registered/i.test(m)) return "Já existe uma conta com esse e-mail. Use “Entrar”.";
     if (/Password should be at least/i.test(m)) return "A senha precisa ter pelo menos 6 caracteres.";
     if (/row-level security|permission denied/i.test(m)) return "Sem permissão para essa fazenda.";
@@ -34,8 +36,10 @@ window.AeraNuvem = (function () {
     return usuario;
   }
   async function entrar(email, senha) { usuario = ok(await cliente().auth.signInWithPassword({ email, password: senha })).user; return usuario; }
-  async function criarConta(email, senha, nome) {
-    const d = ok(await cliente().auth.signUp({ email, password: senha, options: { data: { nome } } }));
+  async function criarConta(email, senha) {
+    // O link de confirmação do e-mail volta para o endereço onde o app está aberto.
+    const volta = /^https?:/.test(location.protocol) ? location.origin + location.pathname : undefined;
+    const d = ok(await cliente().auth.signUp({ email, password: senha, options: volta ? { emailRedirectTo: volta } : {} }));
     usuario = d.session ? d.user : null;
     return { usuario, confirmar: !d.session };
   }
@@ -98,8 +102,9 @@ window.AeraNuvem = (function () {
   }
   async function salvarPerfil(p) {
     if (!usuario) return;
-    ok(await cliente().from("perfis").update({ nome: nulo(p.nome), funcao: nulo(p.funcao), registro: nulo(p.registro), empresa: nulo(p.empresa),
-      email: nulo(p.email) || usuario.email, telefone: nulo(p.tel), especie: nulo(p.especie) }).eq("id", usuario.id));
+    const r = ok(await cliente().from("perfis").update({ nome: nulo(p.nome), funcao: nulo(p.funcao), registro: nulo(p.registro), empresa: nulo(p.empresa),
+      email: usuario.email, telefone: nulo(p.tel), especie: nulo(p.especie) }).eq("id", usuario.id).select("id"));
+    if (!r.length) throw new Error("Seu perfil não foi encontrado no banco.");
   }
   async function lerPerfil() {
     if (!usuario) return null;

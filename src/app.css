@@ -86,7 +86,7 @@ main { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 2
 .campo { display: grid; gap: 5px; }
 .campo label { font-size: 13px; font-weight: 600; color: var(--grafite-2); }
 .campo small { font-size: 12px; color: var(--grafite-3); }
-input[type="text"], input[type="number"], select {
+input[type="text"], input[type="number"], input[type="email"], input[type="password"], input[type="tel"], select {
   width: 100%; box-sizing: border-box; padding: 9px 11px; border: 1px solid var(--linha-2);
   border-radius: 8px; background: var(--branco);
 }
@@ -408,3 +408,21 @@ a.item-not:hover b { color: var(--campo); }
 .aviso-nuvem { margin-top: 6px; font-size: 13px; color: #6b4a12; background: var(--alerta-bg); border: 1px solid #efd9ad; border-radius: 8px; padding: 6px 10px; display: inline-block; }
 .aviso-nuvem[hidden] { display: none; }
 .aviso-nuvem a { color: inherit; font-weight: 700; }
+
+/* Entrar / criar conta (passo 1) e completar cadastro (passo 2) */
+body.modo-entrar .topo { display: none; }
+.tela-entrar { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+.entrar-caixa { width: 100%; max-width: 420px; display: grid; gap: 14px; }
+.entrar-caixa h1 { margin: 0; }
+.entrar-caixa .rotulo { margin: 0; }
+.entrar-logo { width: 150px; height: auto; }
+.entrar-seg { width: 100%; }
+.entrar-seg button { flex: 1; padding: 10px 12px; }
+.entrar-caixa .btn.pri { width: 100%; justify-content: center; }
+.entrar-msg:empty { display: none; }
+.entrar-msg { font-size: 13px; color: var(--grafite-2); }
+.entrar-msg.erro { color: #9b2c2c; font-weight: 600; }
+.entrar-confirmar { display: grid; gap: 12px; background: var(--papel); border: 1px solid var(--linha); border-radius: 10px; padding: 14px; }
+.entrar-confirmar p { margin: 0; }
+.entrar-sem { font-size: 13px; color: var(--grafite-3); text-align: center; }
+#p-email[readonly] { background: var(--papel); color: var(--grafite-3); }
