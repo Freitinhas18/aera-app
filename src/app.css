@@ -426,3 +426,8 @@ body.modo-entrar .topo { display: none; }
 .entrar-confirmar p { margin: 0; }
 .entrar-sem { font-size: 13px; color: var(--grafite-3); text-align: center; }
 #p-email[readonly] { background: var(--papel); color: var(--grafite-3); }
+
+/* Validação de campos */
+.erro-campo { display: block; color: #9b2c2c; font-size: 12px; font-weight: 600; margin-top: 4px; }
+.com-erro input, .com-erro select, [aria-invalid="true"] { border-color: #c0392b !important; box-shadow: 0 0 0 2px rgba(192, 57, 43, .12); }
+.impl-nenhum { grid-column: 1 / -1; }

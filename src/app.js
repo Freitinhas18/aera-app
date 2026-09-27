@@ -15,6 +15,81 @@
     t.className = "toast"; t.textContent = msg; t.setAttribute("role", "status");
     document.body.appendChild(t); setTimeout(() => t.remove(), 2800);
   }
+  // ---------------------------------------------------------------- validação de campos
+  const soDigitos = (v) => String(v || "").replace(/\D/g, "");
+  // (34) 99999-0000 para celular, (34) 3831-0000 para fixo
+  function formatarTel(v) {
+    const d = soDigitos(v).slice(0, 11);
+    if (!d) return "";
+    if (d.length <= 2) return "(" + d;
+    const r = d.slice(2), corte = d.length === 11 ? 5 : 4;
+    return "(" + d.slice(0, 2) + ") " + (r.length > corte ? r.slice(0, corte) + "-" + r.slice(corte) : r);
+  }
+  function telValido(v) {
+    const d = soDigitos(v);
+    if (!/^[1-9]{2}/.test(d)) return false;              // DDD de 11 a 99, sem zero
+    if (d.length === 11) return d[2] === "9";             // celular: 9 dígitos começando com 9
+    return d.length === 10 && /[2-5]/.test(d[2]);         // fixo: 8 dígitos começando de 2 a 5
+  }
+  const emailValido = (v) => v.length <= 120 && /^[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/i.test(v);
+  const temLetras = (v, min) => v.trim().length >= min && /[a-zà-ú]/i.test(v);
+
+  // Mostra o erro embaixo do campo e marca o campo; some quando a pessoa corrige.
+  // A mensagem fica no fim do .campo; fora de um .campo (ex.: linha da coordenada), logo depois da linha.
+  function erroCampo(el, msg) {
+    const campo = el.closest(".campo");
+    let s = document.getElementById("erro-" + el.id);
+    if (!s) {
+      s = document.createElement("small"); s.className = "erro-campo"; s.id = "erro-" + el.id; s.setAttribute("role", "alert");
+      if (campo) campo.appendChild(s); else el.parentElement.after(s);
+    }
+    s.textContent = msg; el.setAttribute("aria-invalid", "true");
+    if (campo) campo.classList.add("com-erro");
+  }
+  function limparErro(el) {
+    const s = document.getElementById("erro-" + el.id); if (s) s.remove();
+    el.removeAttribute("aria-invalid");
+    const campo = el.closest(".campo"); if (campo) campo.classList.remove("com-erro");
+  }
+  // Recebe [[elemento, mensagem ou ""], ...]; marca os erros e leva ao primeiro. Devolve true se está tudo certo.
+  function validar(regras, form) {
+    if (form) form.querySelectorAll("[aria-invalid]").forEach(limparErro);
+    const erros = regras.filter(([el, msg]) => el && msg);
+    erros.forEach(([el, msg]) => erroCampo(el, msg));
+    if (erros.length) {
+      const el = erros[0][0], det = el.closest("details"); if (det) det.open = true;
+      el.scrollIntoView({ behavior: "smooth", block: "center" }); setTimeout(() => el.focus && el.focus({ preventScroll: true }), 300);
+      toast(erros.length === 1 ? erros[0][1] : "Confira os " + erros.length + " campos marcados");
+    }
+    return !erros.length;
+  }
+  const numero = (el, min, max, nome, un) => {
+    const v = el.value.trim();
+    if (v === "") return "Informe " + nome + ".";
+    const n = +v.replace(",", ".");
+    return Number.isFinite(n) && n >= min && n <= max ? "" : nome[0].toUpperCase() + nome.slice(1) + " deve ficar entre " + min + " e " + max + (un ? " " + un : "") + ".";
+  };
+  const regraTel = (el, obrigatorio) => !el.value.trim() ? (obrigatorio ? "Informe o telefone com DDD." : "") : telValido(el.value) ? "" : "Telefone inválido. Use DDD + número, ex.: (34) 99999-0000.";
+  const regraEmail = (el, obrigatorio) => !el.value.trim() ? (obrigatorio ? "Informe o e-mail." : "") : emailValido(el.value.trim()) ? "" : "E-mail inválido. Ex.: nome@exemplo.com";
+
+  // Máscaras e limites aplicados a todos os formulários.
+  function iniciarValidacao() {
+    document.querySelectorAll('input[type="tel"]').forEach((el) => {
+      el.maxLength = 15; el.inputMode = "tel";
+      el.addEventListener("input", () => { el.value = formatarTel(el.value); });
+    });
+    document.querySelectorAll('input[type="email"]').forEach((el) => {
+      el.maxLength = 120;
+      el.addEventListener("input", () => { if (/\s/.test(el.value)) el.value = el.value.replace(/\s/g, ""); });
+      el.addEventListener("blur", () => { el.value = el.value.trim().toLowerCase(); });
+    });
+    document.querySelectorAll('input[type="text"]').forEach((el) => { if (el.maxLength < 0 || el.maxLength > 500) el.maxLength = 80; });
+    const limites = { "p-registro": 30, "f-car": 60, "f-obs": 300, "t-nome": 60, "coord": 60 };
+    Object.keys(limites).forEach((id) => { const el = document.getElementById(id); if (el) el.maxLength = limites[id]; });
+    document.addEventListener("input", (e) => { if (e.target.hasAttribute && e.target.hasAttribute("aria-invalid")) limparErro(e.target); });
+    document.addEventListener("change", (e) => { if (e.target.hasAttribute && e.target.hasAttribute("aria-invalid")) limparErro(e.target); });
+  }
+
   async function buscarJSON(url, ms = 5000) {
     const c = new AbortController(); const id = setTimeout(() => c.abort(), ms);
     try { const r = await fetch(url, { signal: c.signal }); if (!r.ok) throw new Error(r.status); return await r.json(); }
@@ -243,10 +318,15 @@
     $("#p-nome").addEventListener("input", () => { if (!fotoTemp) pintarAvatares({ nome: $("#p-nome").value }); });
     $("#form-perfil").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const nome = $("#p-nome").value.trim();
-      if (!nome) { $("#perfil-msg").textContent = "Informe seu nome para continuar."; $("#p-nome").focus(); return; }
+      const nome = $("#p-nome").value.trim().replace(/\s+/g, " ");
+      $("#perfil-msg").textContent = "";
+      if (!validar([
+        [$("#p-nome"), temLetras(nome, 3) ? "" : "Informe seu nome completo."],
+        [$("#p-email"), regraEmail($("#p-email"), true)],
+        [$("#p-tel"), regraTel($("#p-tel"), true)],
+      ], $("#form-perfil"))) return;
       const p = { nome, funcao: $("#p-funcao").value, registro: $("#p-registro").value.trim(), empresa: $("#p-empresa").value.trim(),
-        email: $("#p-email").value.trim(), tel: $("#p-tel").value.trim(), especie: $("#p-especie").value, foto: fotoTemp };
+        email: $("#p-email").value.trim().toLowerCase(), tel: formatarTel($("#p-tel").value), especie: $("#p-especie").value, foto: fotoTemp };
       guardar.gravar("perfil", p);
       let ondeFicou = "Perfil salvo neste aparelho";
       if (logado()) {
@@ -472,7 +552,7 @@
   ];
   const nomeImpl = (id) => (IMPLEMENTOS.find((x) => x[0] === id) || [id, id])[1];
   const implMarcados = () => IMPLEMENTOS.filter((x) => $("#impl-" + x[0]).checked).map((x) => x[0]);
-  const marcarImplementos = (lista) => IMPLEMENTOS.forEach((x) => { $("#impl-" + x[0]).checked = lista.includes(x[0]); });
+  const marcarImplementos = (lista) => { IMPLEMENTOS.forEach((x) => { $("#impl-" + x[0]).checked = lista.includes(x[0]); }); $("#impl-nenhum").checked = !lista.length; };
   const textoImplementos = (lista) => (lista && lista.length ? lista.map(nomeImpl).join(", ") : "Nenhum (colheita manual)");
 
   // Parâmetros de estudos de campo; os números entre colchetes são as referências.
@@ -637,6 +717,7 @@
     const atual = +$("#prod-atual").value || 0;
     const apt = aptidao(esp, t);
     const ok = estado.pts.length >= 3;
+    if (ok && $("#coord").hasAttribute("aria-invalid")) limparErro($("#coord"));
     const med = ok ? medirPoligono(estado.pts) : { area: 0, perim: 0 };
     const areaHa = med.area / 10000, perim = med.perim;
 
@@ -648,7 +729,7 @@
     $("#m-vert").textContent = ok ? estado.pts.length + " vértices" : " ";
     $("#m-apt").innerHTML = '<span class="chip ' + apt.nivel + '">' + apt.rotulo + "</span>";
     $("#m-apt2").textContent = apt.motivo + " · " + fmt(t, 1) + " °C";
-    ["#btn-salvar2", "#btn-docx", "#btn-xlsx"].forEach((id) => { $(id).disabled = !ok; });
+    ["#btn-docx", "#btn-xlsx"].forEach((id) => { $(id).disabled = !ok; });
 
     const lista = CENARIOS[esp].map((c) => {
       const pl = Math.round(10000 / (c.e[0] * c.e[1]));
@@ -850,7 +931,7 @@
     $("#t-nome").value = t.nome || "";
     preencherSelectFazendas(t.fazendaId || "");
     if (t.irrig != null) definirIrrig(t.irrig ? "sim" : "nao");
-    $("#prod-atual").value = t.prodAtual || "";
+    $("#prod-atual").value = t.prodAtual != null ? t.prodAtual : "";
     marcarImplementos(t.implementos || ["derri"]);
     if (t.declive != null) { $("#declive").value = t.declive; estado.decManual = true; $("#dec-fonte").textContent = "Salvo com o talhão"; } else estado.decManual = false;
     if (t.equipe) $("#equipe").value = t.equipe;
@@ -909,7 +990,13 @@
       toast("Vértice " + estado.pts.length + " marcado (±" + gps.pos.prec + " m)");
     });
     $("#implementos").innerHTML = IMPLEMENTOS.map((x) => '<label class="impl"><input type="checkbox" id="impl-' + x[0] + '"' + (x[0] === "derri" ? " checked" : "") + "><span>" + x[1] + "</span></label>").join("");
-    $("#implementos").addEventListener("change", calcular);
+    $("#implementos").insertAdjacentHTML("beforeend", '<label class="impl impl-nenhum"><input type="checkbox" id="impl-nenhum"><span>Nenhuma (colheita manual)</span></label>');
+    // "Nenhuma" e as máquinas se excluem.
+    $("#implementos").addEventListener("change", (e) => {
+      if (e.target.id === "impl-nenhum" && e.target.checked) IMPLEMENTOS.forEach((x) => { $("#impl-" + x[0]).checked = false; });
+      else if (e.target.checked) $("#impl-nenhum").checked = false;
+      calcular();
+    });
     $("#colheita").addEventListener("click", (e) => { const a = e.target.closest("a[data-ref]"); if (a) { e.preventDefault(); $("#ref-" + a.dataset.ref).scrollIntoView({ behavior: "smooth", block: "center" }); } });
     $("#declive").addEventListener("input", () => { estado.decManual = true; $("#dec-fonte").textContent = "Informada manualmente"; calcular(); });
     $("#equipe").addEventListener("input", calcular);
@@ -972,7 +1059,7 @@
 
   function preencherSelectFazendas(sel) {
     const fs = lerFazendas();
-    $("#t-fazenda").innerHTML = '<option value="">Sem fazenda</option>' +
+    $("#t-fazenda").innerHTML = '<option value="" disabled>Escolha a fazenda</option>' +
       fs.map((f) => '<option value="' + f.id + '">' + esc(f.nome) + "</option>").join("") +
       '<option value="__nova">+ Cadastrar nova fazenda</option>';
     $("#t-fazenda").value = sel != null ? sel : "";
@@ -984,11 +1071,13 @@
     $("#nova-faz").hidden = v !== "__nova";
     const f = lerFazendas().find((x) => x.id === v);
     $("#t-prop").textContent = v === "__nova" ? "A fazenda será criada ao salvar o talhão."
-      : f ? "Proprietário: " + (f.proprietario || "não informado") + (localFaz(f) ? " · " + localFaz(f) : "") : "Sem fazenda vinculada";
+      : f ? "Proprietário: " + (f.proprietario || "não informado") + (localFaz(f) ? " · " + localFaz(f) : "") : "";
   }
+  // Começa um talhão novo. O nome só é apagado se a tela mostrava um talhão já salvo;
+  // o que a pessoa acabou de digitar (nome, fazenda) continua ao desenhar ou colar o contorno.
   function novoTalhao() {
+    if (estado.talhaoId) $("#t-nome").value = "";
     estado.talhaoId = null; estado.decManual = false;
-    $("#t-nome").value = "";
     $("#t-salvo-msg").textContent = "";
     atualizarRotuloTalhao();
   }
@@ -1008,23 +1097,45 @@
     $("#t-nome").focus();
   }
 
+  // Todos os campos do formulário do talhão são obrigatórios.
+  function validarTalhao() {
+    const u = estado.ultimo, fid = $("#t-fazenda").value, nova = fid === "__nova";
+    const impl = implMarcados().length || $("#impl-nenhum").checked;
+    const ok = validar([
+      [$("#t-nome"), temLetras($("#t-nome").value, 2) || /\d/.test($("#t-nome").value) ? "" : "Dê um nome ao talhão."],
+      [$("#t-fazenda"), fid ? "" : "Escolha a fazenda do talhão (ou cadastre uma nova)."],
+      [nova && $("#nf-nome"), temLetras($("#nf-nome").value, 2) ? "" : "Informe o nome da nova fazenda."],
+      [nova && $("#nf-prop"), temLetras($("#nf-prop").value, 3) ? "" : "Informe o proprietário da nova fazenda."],
+      [$("#coord"), u && u.ok ? "" : "Desenhe o contorno do talhão no mapa (pelo menos 3 pontos) ou cole as coordenadas."],
+      [$("#t-mun"), temLetras($("#t-mun").value, 2) ? "" : "Informe o município."],
+      [$("#t-uf"), $("#t-uf").value ? "" : "Escolha a UF."],
+      [$("#altitude"), numero($("#altitude"), 0, 3000, "a altitude", "m")],
+      [$("#tmedia"), numero($("#tmedia"), 5, 35, "a temperatura média", "°C")],
+      [$("#declive"), numero($("#declive"), 0, 100, "a declividade", "%")],
+      [$("#impl-nenhum"), impl ? "" : "Marque as máquinas da fazenda ou “Nenhuma (colheita manual)”."],
+      [$("#prod-atual"), numero($("#prod-atual"), 0, 200, "a produção atual (0 se ainda não produz)", "sc/ha")],
+      [$("#equipe"), numero($("#equipe"), 1, 500, "o número de pessoas na colheita")],
+    ], $("#form-talhao"));
+    if (!ok) $("#t-salvo-msg").textContent = "Faltam dados: veja os campos marcados em vermelho.";
+    return ok;
+  }
+
   function salvarTalhao() {
+    if (!validarTalhao()) return;
     const u = estado.ultimo;
-    if (!u || !u.ok) return toast("Delimite o talhão antes de salvar");
     let fid = $("#t-fazenda").value;
     const fs = lerFazendas();
     if (fid === "__nova") {
-      const nome = $("#nf-nome").value.trim();
-      if (!nome) { $("#nf-nome").focus(); return toast("Informe o nome da nova fazenda"); }
-      const f = { id: "f" + Date.now(), nome, proprietario: $("#nf-prop").value.trim(), criado: new Date().toISOString() };
+      const nome = $("#nf-nome").value.trim().replace(/\s+/g, " ");
+      const f = { id: "f" + Date.now(), nome, proprietario: $("#nf-prop").value.trim(), municipio: $("#t-mun").value.trim(), uf: $("#t-uf").value, criado: new Date().toISOString() };
       fs.push(f); guardar.gravar("fazendas", fs); fid = f.id;
       $("#nf-nome").value = ""; $("#nf-prop").value = "";
     }
     const ts = lerTalhoes();
     const reg = {
-      id: estado.talhaoId || Date.now(), nome: $("#t-nome").value.trim() || "Talhão " + (ts.length + 1), fazendaId: fid || null,
+      id: estado.talhaoId || Date.now(), nome: $("#t-nome").value.trim().replace(/\s+/g, " "), fazendaId: fid,
       especie: estado.especie, area: u.areaHa, pts: estado.pts.map((p) => [p.lat, p.lng]), centro: estado.centro,
-      alt: u.alt, tmedia: u.t, irrig: u.irrig, prodAtual: u.atual || null, data: new Date().toISOString(),
+      alt: u.alt, tmedia: u.t, irrig: u.irrig, prodAtual: +$("#prod-atual").value, data: new Date().toISOString(),
       municipio: $("#t-mun").value.trim(), uf: $("#t-uf").value, regiao: estado.regiao || "", implementos: u.impl, declive: u.declive, equipe: u.equipe,
       resultado: { apt: u.apt.rotulo, cenario: u.melhor.nome, scha: u.melhor.med, producao: u.melhor.total },
     };
@@ -1198,10 +1309,19 @@
     $("#btn-faz-cancelar").addEventListener("click", () => { $("#form-faz").hidden = true; });
     $("#form-faz").addEventListener("submit", (e) => {
       e.preventDefault();
-      const nome = $("#f-nome").value.trim();
-      if (!nome) { $("#f-msg").textContent = "Informe o nome da fazenda."; return $("#f-nome").focus(); }
+      const nome = $("#f-nome").value.trim().replace(/\s+/g, " ");
+      $("#f-msg").textContent = "";
+      const area = $("#f-area").value.trim();
+      if (!validar([
+        [$("#f-nome"), temLetras(nome, 2) ? "" : "Informe o nome da fazenda."],
+        [$("#f-prop"), temLetras($("#f-prop").value, 3) ? "" : "Informe o nome do proprietário."],
+        [$("#f-tel"), regraTel($("#f-tel"), false)],
+        [$("#f-mun"), temLetras($("#f-mun").value, 2) ? "" : "Informe o município."],
+        [$("#f-uf"), $("#f-uf").value ? "" : "Escolha a UF."],
+        [$("#f-area"), area === "" ? "" : numero($("#f-area"), 0.1, 100000, "a área total", "ha")],
+      ], $("#form-faz"))) return;
       const fs = lerFazendas();
-      const dados = { nome, proprietario: $("#f-prop").value.trim(), telefone: $("#f-tel").value.trim(), municipio: $("#f-mun").value.trim(),
+      const dados = { nome, proprietario: $("#f-prop").value.trim(), telefone: formatarTel($("#f-tel").value), municipio: $("#f-mun").value.trim(),
         uf: $("#f-uf").value, areaTotal: +$("#f-area").value || null, car: $("#f-car").value.trim(), obs: $("#f-obs").value.trim() };
       const i = fs.findIndex((x) => x.id === estado.fazEditando);
       if (i >= 0) fs[i] = Object.assign(fs[i], dados, logado() ? { pendente: true } : {});
@@ -1434,7 +1554,7 @@
     $("#seg-conta").addEventListener("click", (e) => { const b = e.target.closest("button[data-modo]"); if (b) definirModoConta(b.dataset.modo); });
     $("#conta-fora").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const email = $("#c-email").value.trim(), senha = $("#c-senha").value;
+      const email = $("#c-email").value.trim().toLowerCase(), senha = $("#c-senha").value;
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { msgEntrar("Informe um e-mail válido.", true); return $("#c-email").focus(); }
       if (senha.length < 6) { msgEntrar("A senha precisa ter pelo menos 6 caracteres.", true); return $("#c-senha").focus(); }
       if (modoConta === "criar" && senha !== $("#c-senha2").value) { msgEntrar("As duas senhas não são iguais.", true); return $("#c-senha2").focus(); }
@@ -1498,6 +1618,7 @@
   iniciarFazendas();
   iniciarNoticias();
   iniciarConta();
+  iniciarValidacao();
   definirEspecie(lerPerfil().especie || "arabica");
   rota();
   abrirApp();
