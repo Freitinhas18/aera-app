@@ -1,0 +1,415 @@
+<title>AERA Campo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap">
+<style>
+{{MAPA_CSS}}
+{{APP_CSS}}
+</style>
+
+<div class="splash" id="splash" role="status" aria-live="polite">
+  <div class="splash-centro">
+    <img src="{{LOGO}}" alt="AERA Agricultural Digital Engineering" width="560" height="126">
+    <p>Engenharia digital para o campo</p>
+  </div>
+  <div class="splash-barra" aria-hidden="true"><span></span></div>
+  <span class="splash-sr">Carregando o AERA</span>
+</div>
+
+<header class="topo">
+  <div class="topo-in">
+    <a class="marca" href="#inicio" aria-label="AERA, página inicial"><img src="{{LOGO}}" alt="AERA Agricultural Digital Engineering" width="560" height="126"></a>
+    <nav class="nav" aria-label="Seções">
+      <a href="#inicio" data-tela="inicio">
+        <svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 10.5 12 3.5l8.5 7V20a1 1 0 0 1-1 1H15v-6h-6v6H4.5a1 1 0 0 1-1-1z"/></svg>
+        <span class="nav-txt">Início</span><span class="nav-curto" aria-hidden="true">Início</span>
+      </a>
+      <a href="#talhao" data-tela="talhao">
+        <svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 9 4l6 2.5L20 4v12.5L15 20l-6-2.5L4 20z"/><path d="M9 4v13.5M15 6.5V20"/></svg>
+        <span class="nav-txt">Talhão</span><span class="nav-curto" aria-hidden="true">Talhão</span>
+      </a>
+      <a href="#fazendas" data-tela="fazendas">
+        <svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 8.5 6l5.5 4.5V20H3z"/><path d="M14 13h7v7h-7M6.5 20v-5h4v5M17.5 13V9"/></svg>
+        <span class="nav-txt">Fazendas</span><span class="nav-curto" aria-hidden="true">Fazendas</span>
+      </a>
+      <a href="#noticias" data-tela="noticias">
+        <svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h12v15a1.5 1.5 0 0 0 1.5 1.5H6.5A1.5 1.5 0 0 1 5 19z"/><path d="M17 9h2.5v10a1.5 1.5 0 0 1-3 0M8 8h6M8 11.5h6M8 15h4"/></svg>
+        <span class="nav-txt">Notícias</span><span class="nav-curto" aria-hidden="true">Notícias</span>
+      </a>
+      <a href="#perfil" data-tela="perfil" class="nav-perfil">
+        <span class="avatar avatar-nav" data-avatar aria-hidden="true"></span>
+        <span class="nav-txt">Perfil</span><span class="nav-curto" aria-hidden="true">Perfil</span>
+      </a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- ================= INÍCIO ================= -->
+  <section class="tela" id="tela-inicio" aria-labelledby="ola">
+    <div class="saudacao">
+      <div>
+        <p class="rotulo" id="hoje">Hoje</p>
+        <h1 id="ola">Olá, <span id="nome-exib">agrônomo</span></h1>
+        <p class="mudo" id="resumo-dia">Carregando o clima da sua região…</p>
+      </div>
+      <div class="saudacao-ctl">
+        <label class="rotulo" for="regiao">Região</label>
+        <select id="regiao"></select>
+        <button class="btn peq" id="btn-local" type="button">Usar minha localização</button>
+      </div>
+    </div>
+
+    <div class="inicio-grade">
+      <div class="tela">
+        <section class="bloco" aria-labelledby="t-clima">
+          <div class="bloco-cab">
+            <h2 id="t-clima">Clima agora</h2>
+            <span class="selo" id="clima-fonte">Carregando</span>
+          </div>
+          <div class="clima-agora">
+            <div class="clima-temp">
+              <span id="clima-icone"></span>
+              <div>
+                <div class="t num" id="clima-t">--<sup>°C</sup></div>
+                <div class="clima-desc" id="clima-desc">…</div>
+              </div>
+            </div>
+            <div class="clima-dados">
+              <div><b class="num" id="clima-ur">--</b><span>Umidade relativa</span></div>
+              <div><b class="num" id="clima-vento">--</b><span>Vento a 10 m</span></div>
+              <div><b class="num" id="clima-chuva">--</b><span>Chuva hoje</span></div>
+            </div>
+          </div>
+          <div>
+            <p class="rotulo" style="margin-bottom:8px">Próximos 7 dias</p>
+            <div class="previsao" id="previsao"></div>
+          </div>
+        </section>
+
+        <section class="bloco" aria-labelledby="t-janelas">
+          <div class="bloco-cab">
+            <h2 id="t-janelas">Janelas de manejo da semana</h2>
+            <span class="mudo" style="font-size:13px">Regras simples a partir da previsão</span>
+          </div>
+          <div class="janelas" id="janelas"></div>
+        </section>
+      </div>
+
+      <div class="tela">
+        <section class="bloco atalho" aria-labelledby="t-atalho">
+          <p class="rotulo" style="color:#9fb0ba">Função principal</p>
+          <h2 id="t-atalho">Análise de talhão de café</h2>
+          <p>Localize a coordenada, delimite o talhão no mapa e veja área, produtividade estimada e cenários de plantio com base em pesquisa publicada.</p>
+          <a class="btn acao" href="#talhao">Analisar um talhão</a>
+        </section>
+
+        <section class="bloco" aria-labelledby="t-salvos">
+          <div class="bloco-cab"><h2 id="t-salvos">Talhões salvos</h2><span class="mudo num" id="n-salvos" style="font-size:13px"></span></div>
+          <div class="salvos" id="salvos"></div>
+        </section>
+
+        <section class="bloco" aria-labelledby="t-perfil">
+          <div class="bloco-cab"><h2 id="t-perfil">Seu perfil</h2><a class="btn peq" href="#perfil">Editar</a></div>
+          <div class="perfil-mini">
+            <span class="avatar avatar-md" data-avatar aria-hidden="true"></span>
+            <div>
+              <b id="mini-nome">Perfil não configurado</b>
+              <p class="mudo" id="mini-info">Adicione sua foto, função e região.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PERFIL ================= -->
+  <section class="tela" id="tela-perfil" aria-labelledby="t-perfil2" hidden>
+    <div>
+      <p class="rotulo" id="perfil-rotulo">Configurações</p>
+      <h1 id="t-perfil2">Quem está usando o AERA</h1>
+      <p class="mudo" id="perfil-intro">Esses dados personalizam a saudação, o clima e os padrões da análise de talhão.</p>
+    </div>
+    <form class="perfil-grade" id="form-perfil" novalidate>
+      <section class="bloco perfil-foto" aria-label="Foto">
+        <span class="avatar avatar-lg" data-avatar aria-hidden="true"></span>
+        <div class="linha" style="justify-content:center">
+          <label class="btn peq" for="foto">Escolher foto</label>
+          <button class="btn peq" type="button" id="btn-sem-foto">Remover</button>
+        </div>
+        <input type="file" id="foto" accept="image/*" class="splash-sr">
+        <small class="mudo">JPG ou PNG. A foto é reduzida e fica salva só neste navegador.</small>
+      </section>
+
+      <section class="bloco" aria-label="Dados">
+        <div class="grade2">
+          <div class="campo">
+            <label for="p-nome">Nome</label>
+            <input type="text" id="p-nome" placeholder="Ex.: Raiph Souza" autocomplete="name" required>
+          </div>
+          <div class="campo">
+            <label for="p-funcao">Função</label>
+            <select id="p-funcao">
+              <option>Engenheiro(a) agrônomo(a)</option>
+              <option>Consultor(a) técnico(a)</option>
+              <option>Técnico(a) agrícola</option>
+              <option>Produtor(a) rural</option>
+              <option>Estudante</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="p-registro">Registro profissional</label>
+            <input type="text" id="p-registro" placeholder="Ex.: CREA-MG 123456/D">
+          </div>
+          <div class="campo">
+            <label for="p-empresa">Empresa ou fazenda</label>
+            <input type="text" id="p-empresa" placeholder="Ex.: Fazenda Santa Clara" autocomplete="organization">
+          </div>
+          <div class="campo">
+            <label for="p-email">E-mail</label>
+            <input type="email" id="p-email" placeholder="nome@exemplo.com" autocomplete="email">
+          </div>
+          <div class="campo">
+            <label for="p-tel">Telefone / WhatsApp</label>
+            <input type="tel" id="p-tel" placeholder="(34) 99999-0000" autocomplete="tel">
+          </div>
+          <div class="campo">
+            <label for="p-regiao">Região principal</label>
+            <select id="p-regiao"></select>
+            <small>Usada no clima da página inicial.</small>
+          </div>
+          <div class="campo">
+            <label for="p-especie">Café que mais atende</label>
+            <select id="p-especie"><option value="arabica">Arábica</option><option value="conilon">Conilon</option></select>
+            <small>Espécie já marcada ao abrir a análise de talhão.</small>
+          </div>
+        </div>
+        <div class="linha">
+          <button class="btn acao" type="submit">Salvar perfil</button>
+          <span class="mudo" id="perfil-msg" style="font-size:13px"></span>
+        </div>
+      </section>
+    </form>
+  </section>
+
+  <!-- ================= FAZENDAS ================= -->
+  <section class="tela" id="tela-fazendas" aria-labelledby="t-faz" hidden>
+    <div class="bloco-cab">
+      <div>
+        <p class="rotulo">Cadastro e análise</p>
+        <h1 id="t-faz">Fazendas</h1>
+      </div>
+      <div class="linha">
+        <button class="btn peq" id="btn-backup" type="button">Exportar backup (.json)</button>
+        <label class="btn peq" for="arq-backup">Importar backup</label>
+        <input type="file" id="arq-backup" accept="application/json,.json" class="splash-sr">
+        <button class="btn acao peq" id="btn-nova-faz" type="button">Nova fazenda</button>
+      </div>
+    </div>
+
+    <form class="bloco" id="form-faz" hidden novalidate>
+      <div class="bloco-cab"><h2 id="form-faz-t">Nova fazenda</h2><button class="btn peq" type="button" id="btn-faz-cancelar">Cancelar</button></div>
+      <div class="grade3">
+        <div class="campo"><label for="f-nome">Nome da fazenda</label><input type="text" id="f-nome" required></div>
+        <div class="campo"><label for="f-prop">Proprietário</label><input type="text" id="f-prop"></div>
+        <div class="campo"><label for="f-tel">Telefone do proprietário</label><input type="tel" id="f-tel" placeholder="(34) 99999-0000"></div>
+        <div class="campo"><label for="f-mun">Município</label><input type="text" id="f-mun" placeholder="Ex.: Patrocínio"></div>
+        <div class="campo"><label for="f-uf">UF</label>
+          <select id="f-uf"></select></div>
+        <div class="campo"><label for="f-area">Área total (ha)</label><input type="number" id="f-area" min="0" step="0.1" placeholder="Ex.: 120"></div>
+        <div class="campo"><label for="f-car">CAR (opcional)</label><input type="text" id="f-car" placeholder="Nº do Cadastro Ambiental Rural"></div>
+        <div class="campo campo-largo"><label for="f-obs">Observações</label><input type="text" id="f-obs" placeholder="Variedades, histórico, acesso…"></div>
+      </div>
+      <div class="linha"><button class="btn acao" type="submit">Salvar fazenda</button><span class="mudo" id="f-msg" style="font-size:13px"></span></div>
+    </form>
+
+    <div class="metricas" id="faz-totais"></div>
+    <div id="faz-conteudo"></div>
+  </section>
+
+  <!-- ================= NOTÍCIAS ================= -->
+  <section class="tela" id="tela-noticias" aria-labelledby="t-not" hidden>
+    <div class="bloco-cab">
+      <div>
+        <p class="rotulo">Página de teste</p>
+        <h1 id="t-not">Notícias e pesquisa sobre café</h1>
+        <p class="mudo">Notícias recentes sobre clima, plantio e mercado, e artigos científicos publicados no último ano.</p>
+      </div>
+      <button class="btn peq" id="btn-not-atualizar" type="button">Atualizar</button>
+    </div>
+    <div class="noticias-grade">
+      <section class="bloco" aria-labelledby="t-not1">
+        <div class="bloco-cab"><h2 id="t-not1">Notícias</h2><span class="selo" id="not-fonte">Carregando</span></div>
+        <div class="seg" role="group" aria-label="Tema" id="seg-tema">
+          <button type="button" data-v="clima" aria-pressed="true">Clima</button>
+          <button type="button" data-v="plantio" aria-pressed="false">Plantio e manejo</button>
+          <button type="button" data-v="mercado" aria-pressed="false">Mercado</button>
+        </div>
+        <div class="lista-not" id="lista-not"></div>
+      </section>
+      <section class="bloco" aria-labelledby="t-not2">
+        <div class="bloco-cab"><h2 id="t-not2">Artigos científicos recentes</h2><span class="selo" id="art-fonte">Carregando</span></div>
+        <div class="lista-not" id="lista-art"></div>
+      </section>
+    </div>
+  </section>
+
+  <!-- ================= TALHÃO ================= -->
+  <section class="tela" id="tela-talhao" aria-labelledby="t-talhao" hidden>
+    <div class="bloco-cab">
+      <div>
+        <p class="rotulo" id="talhao-rotulo">Café · análise de talhão</p>
+        <h1 id="t-talhao">Análise de talhão</h1>
+      </div>
+      <div class="linha">
+        <button class="btn pri peq" id="btn-docx" type="button" disabled>Relatório (.docx)</button>
+        <button class="btn pri peq" id="btn-xlsx" type="button" disabled>Planilha (.xlsx)</button>
+      </div>
+    </div>
+
+    <div class="talhao-grade">
+      <form class="bloco form-talhao" id="form-talhao" novalidate>
+        <fieldset class="fbloco" id="b-talhao">
+          <legend><b>1</b> Talhão</legend>
+          <div class="grade2">
+            <div class="campo"><label for="t-nome">Nome</label><input type="text" id="t-nome" placeholder="Ex.: Talhão 3" autocomplete="off" enterkeyhint="next"></div>
+            <div class="campo"><label for="t-fazenda">Fazenda</label><select id="t-fazenda"></select></div>
+          </div>
+          <small class="mudo" id="t-prop"></small>
+          <div class="nova-faz grade2" id="nova-faz" hidden>
+            <div class="campo"><label for="nf-nome">Nova fazenda</label><input type="text" id="nf-nome" placeholder="Ex.: Fazenda Santa Clara"></div>
+            <div class="campo"><label for="nf-prop">Proprietário</label><input type="text" id="nf-prop" placeholder="Ex.: José Almeida"></div>
+          </div>
+        </fieldset>
+
+        <fieldset class="fbloco" id="b-local">
+          <legend><b>2</b> Localização e contorno</legend>
+          <div class="linha-coord">
+            <input type="text" id="coord" value="-18.9612, -47.0071" inputmode="decimal" aria-label="Coordenada (latitude, longitude)" placeholder="Latitude, longitude">
+            <button class="btn pri" id="btn-ir" type="button">Ir</button>
+            <button class="btn icone" id="btn-gps" type="button" title="Usar o GPS do aparelho" aria-label="Usar o GPS do aparelho">
+              <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/><circle cx="12" cy="12" r="8"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"/></svg>
+            </button>
+          </div>
+          <small class="mudo" id="coord-msg"></small>
+          <div class="gps" id="gps" hidden>
+            <p class="gps-status"><i class="gps-ponto" id="gps-ponto"></i><span id="gps-txt">Buscando sinal de GPS…</span></p>
+            <div class="linha">
+              <button class="btn acao peq" id="btn-gps-usar" type="button" disabled>Usar este ponto</button>
+              <button class="btn peq" id="btn-gps-vertice" type="button" disabled>Marcar vértice aqui</button>
+              <button class="btn peq" id="btn-gps-parar" type="button">Parar</button>
+            </div>
+          </div>
+          <div class="linha">
+            <button class="btn" id="btn-desenhar" type="button">Desenhar contorno</button>
+            <button class="btn peq" id="btn-desfazer" type="button">Desfazer</button>
+            <button class="btn peq" id="btn-limpar" type="button">Limpar</button>
+          </div>
+          <p class="dica" id="dica" hidden></p>
+          <details class="colar">
+            <summary>Colar coordenadas dos vértices</summary>
+            <textarea id="colar-pts" rows="4" spellcheck="false" placeholder="Uma linha por vértice: latitude, longitude&#10;-18.9598, -47.0092&#10;-18.9601, -47.0051&#10;-18.9627, -47.0047"></textarea>
+            <div class="linha"><button class="btn peq" id="btn-colar" type="button">Calcular</button><small class="mudo" id="colar-msg">Aceita GeoJSON e KML do Google Earth.</small></div>
+          </details>
+          <details class="auto">
+            <summary><span class="auto-rot">Preenchido pela coordenada</span><span id="auto-resumo">--</span><span class="auto-editar">Ajustar</span></summary>
+            <div class="auto-campos">
+              <div class="campo"><label for="t-mun">Município</label><input type="text" id="t-mun"></div>
+              <div class="campo"><label for="t-uf">UF</label><select id="t-uf"></select></div>
+              <div class="campo"><label for="altitude">Altitude (m)</label><input type="number" id="altitude" value="970" step="10"></div>
+              <div class="campo"><label for="tmedia">Temp. média (°C)</label><input type="number" id="tmedia" value="21.3" step="0.1"></div>
+              <div class="campo"><label for="declive">Declividade (%)</label><input type="number" id="declive" value="8" min="0" max="100" step="1"></div>
+            </div>
+            <ul class="fontes-auto">
+              <li><span>Município</span><span id="local-fonte">buscado pela coordenada</span></li>
+              <li><span>Altitude</span><span id="alt-fonte">valor de exemplo</span></li>
+              <li><span>Temperatura</span><span id="tm-fonte">estimada pela altitude</span></li>
+              <li><span>Declividade</span><span id="dec-fonte">valor de exemplo</span></li>
+            </ul>
+          </details>
+        </fieldset>
+
+        <fieldset class="fbloco" id="b-lavoura">
+          <legend><b>3</b> Lavoura</legend>
+          <div class="grade2">
+            <div class="campo">
+              <label>Espécie</label>
+              <div class="seg" role="group" aria-label="Espécie" id="seg-especie">
+                <button type="button" data-v="arabica" aria-pressed="true">Arábica</button>
+                <button type="button" data-v="conilon" aria-pressed="false">Conilon</button>
+              </div>
+            </div>
+            <div class="campo">
+              <label>Irrigação</label>
+              <div class="seg" role="group" aria-label="Irrigação" id="seg-irrig">
+                <button type="button" data-v="nao" aria-pressed="true">Não</button>
+                <button type="button" data-v="sim" aria-pressed="false">Sim</button>
+              </div>
+              <input type="hidden" id="irrig" value="nao">
+            </div>
+          </div>
+          <div class="campo">
+            <label>Máquinas da fazenda</label>
+            <div class="implementos" id="implementos"></div>
+          </div>
+          <div class="grade2">
+            <div class="campo"><label for="prod-atual">Produção atual (sc/ha)</label><input type="number" id="prod-atual" placeholder="Opcional" min="0" step="1" inputmode="numeric"></div>
+            <div class="campo"><label for="equipe">Pessoas na colheita</label><input type="number" id="equipe" value="12" min="1" step="1" inputmode="numeric"></div>
+          </div>
+        </fieldset>
+
+        <div class="form-acoes">
+          <button class="btn acao" id="btn-salvar2" type="button" disabled>Salvar talhão</button>
+          <span class="mudo" id="t-salvo-msg"></span>
+        </div>
+      </form>
+
+      <div class="tela">
+        <div class="mapa-caixa">
+          <div class="mapa-barra">
+            <div class="seg" role="group" aria-label="Camada do mapa" id="seg-camada">
+              <button type="button" data-v="sat" aria-pressed="true">Satélite</button>
+              <button type="button" data-v="osm" aria-pressed="false">Ruas</button>
+            </div>
+          </div>
+          <div id="mapa" role="application" aria-label="Mapa para delimitar o talhão"></div>
+          <div class="mapa-area" id="mapa-area" hidden></div>
+          <span class="mapa-api" id="mapa-api"></span>
+          <div class="aviso-mapa" id="aviso-mapa" hidden><b>A imagem de satélite não carregou.</b> <span id="aviso-txt">O contorno e a área funcionam sobre a grade.</span> <a id="lk-gmaps" href="https://www.google.com/maps" target="_blank" rel="noopener">Ver no Google Maps</a></div>
+        </div>
+
+        <div class="metricas" id="metricas">
+          <div class="metrica"><span class="rotulo">Área</span><b class="num" id="m-area">--</b><p id="m-area2">Delimite o talhão</p></div>
+          <div class="metrica"><span class="rotulo">Perímetro</span><b class="num" id="m-perim">--</b><p id="m-vert">&nbsp;</p></div>
+          <div class="metrica"><span class="rotulo">Aptidão climática</span><b id="m-apt">--</b><p id="m-apt2">&nbsp;</p></div>
+          <div class="metrica"><span class="rotulo">Produção estimada</span><b class="num" id="m-prod">--</b><p id="m-prod2">&nbsp;</p></div>
+        </div>
+      </div>
+    </div>
+
+    <section class="bloco" aria-labelledby="t-cen">
+      <div class="bloco-cab">
+        <h2 id="t-cen">Cenários de plantio</h2>
+        <span class="mudo" style="font-size:13px">Sacas de 60 kg por safra · detalhes no relatório</span>
+      </div>
+      <div id="cenarios" class="cenarios"></div>
+      <div id="colheita" class="colheita"></div>
+      <details class="refs-caixa" id="referencias">
+        <summary>Referências</summary>
+        <ol class="refs" id="refs"></ol>
+      </details>
+    </section>
+  </section>
+</main>
+<footer class="rodape">AERA · Agricultural Digital Engineering · protótipo para o hackathon</footer>
+
+{{MAPA_LIB}}
+<script>
+{{JSZIP}}
+</script>
+<script>
+{{MAPA_JS}}
+{{IMAGENS_JS}}
+{{EXPORT_JS}}
+{{APP_JS}}
+</script>
