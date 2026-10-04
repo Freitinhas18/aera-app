@@ -107,18 +107,20 @@
   ];
 
   // ---------- navegação por abas (#inicio / #talhao) ----------
-  const TELAS = ["inicio", "talhao", "fazendas", "noticias", "perfil", "entrar"];
+  const TELAS = ["inicio", "talhao", "fazendas", "noticias", "perfil", "entrar", "resultado"];
   function rota() {
     const h = location.hash.replace("#", "");
     const tela = TELAS.includes(h) ? h : "inicio";
     TELAS.forEach((t) => { $("#tela-" + t).hidden = t !== tela; });
     document.body.classList.toggle("modo-entrar", tela === "entrar");
+    const aba = tela === "resultado" ? "talhao" : tela; // o resultado pertence à aba Talhão
     document.querySelectorAll(".nav a").forEach((a) => {
-      if (a.dataset.tela === tela) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+      if (a.dataset.tela === aba) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
     });
     if (tela === "talhao") iniciarMapa();
     if (tela === "perfil") preencherFormPerfil();
     if (tela === "entrar") abrirEntrar();
+    if (tela === "resultado") renderResultado();
     if (tela === "fazendas") renderFazendas();
     if (tela === "noticias" && !noticiasCarregadas) carregarNoticias();
     if (tela === "talhao" && estado.fazendaPre) { const f = estado.fazendaPre; estado.fazendaPre = null; setTimeout(() => novoTalhaoNaFazenda(f), 80); }
@@ -740,27 +742,202 @@
     lista.forEach((c) => { c.col = colheitaCenario(c, ok ? areaHa : 1, declive, equipe, impl); });
     const viaveis = lista.filter((c) => !c.bloq);
     const melhor = viaveis.reduce((a, b) => (b.med > a.med ? b : a), viaveis[0]);
-    const escala = Math.max(...lista.map((c) => c.hi)) * 1.05;
 
     $("#m-prod").innerHTML = ok ? fmt(melhor.total, 0) + " <small>sc</small>" : fmt(melhor.med, 0) + " <small>sc/ha</small>";
     $("#m-prod2").textContent = "Cenário " + melhor.nome.toLowerCase() + (ok ? " · " + fmt(melhor.med, 0) + " sc/ha" : "");
 
-    $("#cenarios").innerHTML = lista.map((c) => {
-      const dif = atual ? c.med - atual : null;
-      return '<article class="cenario' + (c === melhor ? " melhor" : "") + (c.bloq ? " bloq" : "") + '">' +
-        '<div class="cenario-cab"><div><h3>' + c.nome + "</h3><p>" + fmt(c.e[0], 1) + " × " + fmt(c.e[1], 1) + " m · " + fmt(c.pl) + " plantas/ha</p></div>" +
-        (c === melhor ? '<span class="chip">Maior produção</span>' : c.bloq ? '<span class="chip atencao">Requer irrigação</span>' : "") + "</div>" +
-        '<div class="barra" aria-hidden="true"><span class="faixa" style="left:' + (c.lo / escala * 100) + "%;width:" + ((c.hi - c.lo) / escala * 100) + '%"></span>' +
-        '<span style="left:' + (c.med / escala * 100 - 0.8) + '%;width:1.6%"></span></div>' +
-        "<dl><dt>Produtividade</dt><dd>" + fmt(c.med, 0) + " sc/ha <small>(" + fmt(c.lo, 0) + "–" + fmt(c.hi, 0) + ")</small></dd>" +
-        (ok ? "<dt>Produção do talhão</dt><dd>" + fmt(c.total, 0) + " sacas</dd>" : "") +
-        "<dt>Colheita</dt><dd>" + c.col.rotulo.replace(/ \(.*\)/, "") + (ok ? " · " + diasTxt(c.col.dias) : "") + "</dd>" +
-        (dif != null ? "<dt>Vs. atual</dt><dd>" + (dif >= 0 ? "+" : "") + fmt(dif, 0) + " sc/ha</dd>" : "") + "</dl></article>";
-    }).join("");
     estado.ultimo = { ok, esp, areaHa, perim, apt, t, alt, irrig, atual, lista, melhor, declive, equipe, impl };
     renderColheita(estado.ultimo);
     $("#b-lavoura").classList.add("feito");
     resumoAuto();
+  }
+
+  // ================================================================
+  // RESULTADO DO TALHÃO: página interativa com tudo o que a análise calculou
+  // ================================================================
+  // Abre o talhão salvo no formulário (que recalcula tudo) e mostra o resultado.
+  function abrirResultadoDe(t) {
+    location.hash = "talhao";
+    setTimeout(() => { carregarTalhao(t); estado.res = null; setTimeout(() => { location.hash = "resultado"; }, 150); }, 80);
+  }
+
+  // Contorno em SVG: projeção plana local, com medidas dos lados, norte e escala.
+  function croquiSvg(pts, areaHa, lados) {
+    const W = 360, H = 260, M = 34;
+    const lat0 = pts.reduce((a, p) => a + p.lat, 0) / pts.length, lng0 = pts.reduce((a, p) => a + p.lng, 0) / pts.length;
+    const kx = 111320 * Math.cos(lat0 * Math.PI / 180), ky = 110574;
+    const xy = pts.map((p) => [(p.lng - lng0) * kx, (lat0 - p.lat) * ky]);
+    const xs = xy.map((p) => p[0]), ys = xy.map((p) => p[1]);
+    const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
+    const esc = Math.min((W - 2 * M) / (maxx - minx || 1), (H - 2 * M) / (maxy - miny || 1));
+    const ox = (W - (maxx - minx) * esc) / 2, oy = (H - (maxy - miny) * esc) / 2;
+    const P = xy.map((p) => [ox + (p[0] - minx) * esc, oy + (p[1] - miny) * esc]);
+    const cx = P.reduce((a, p) => a + p[0], 0) / P.length, cy = P.reduce((a, p) => a + p[1], 0) / P.length;
+    let medidas = "";
+    if (lados && P.length <= 10) P.forEach((p, i) => {
+      const q = P[(i + 1) % P.length], mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2;
+      const dx = mx - cx, dy = my - cy, d = Math.hypot(dx, dy) || 1;
+      medidas += '<text class="rc-lado" x="' + (mx + dx / d * 14).toFixed(1) + '" y="' + (my + dy / d * 14 + 4).toFixed(1) + '" text-anchor="middle">' + fmt(lados[i], 0) + " m</text>";
+    });
+    // barra de escala com valor redondo
+    const alvo = (W * 0.28) / esc, base = Math.pow(10, Math.floor(Math.log10(alvo)));
+    const passo = [1, 2, 5, 10].map((m) => m * base).filter((v) => v <= alvo).pop() || base;
+    const bw = passo * esc;
+    return '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Contorno do talhão com ' + fmt(areaHa, 2) + ' hectares">' +
+      '<polygon class="rc-forma" points="' + P.map((p) => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ") + '"/>' +
+      P.map((p) => '<circle class="rc-vert" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="4"/>').join("") + medidas +
+      '<text class="rc-area" x="' + cx.toFixed(1) + '" y="' + (cy + 6).toFixed(1) + '" text-anchor="middle">' + fmt(areaHa, 2) + " ha</text>" +
+      '<g class="rc-norte" transform="translate(' + (W - 22) + ',26)"><path d="M0,-14 L6,6 L0,2 L-6,6 Z"/><text y="20" text-anchor="middle">N</text></g>' +
+      '<g class="rc-escala" transform="translate(14,' + (H - 16) + ')"><path d="M0,0 H' + bw.toFixed(1) + '"/><path d="M0,-4 V4 M' + bw.toFixed(1) + ',-4 V4"/><text x="' + (bw + 6).toFixed(1) + '" y="4">' + fmt(passo, 0) + " m</text></g></svg>";
+  }
+
+  // Régua com faixa ideal e marcador do valor do talhão.
+  function regua(o) {
+    const pos = (v) => (Math.min(o.max, Math.max(o.min, v)) - o.min) / (o.max - o.min) * 100;
+    return '<div class="regua" role="img" aria-label="' + o.rotulo + '">' +
+      (o.faixas || []).map((f) => '<span class="rg-f ' + (f.cls || "") + '" style="left:' + pos(f.de) + "%;width:" + (pos(f.ate) - pos(f.de)) + '%"></span>').join("") +
+      (o.marcas || []).map((m) => '<span class="rg-m" style="left:' + pos(m.v) + '%"><i>' + m.rot + "</i></span>").join("") +
+      '<span class="rg-v" style="left:' + pos(o.valor) + '%"></span></div>' +
+      '<div class="regua-esc"><span>' + o.minTxt + "</span><span>" + o.maxTxt + "</span></div>";
+  }
+
+  function dadosResultado() {
+    const u = estado.ultimo;
+    if (!u || !u.ok) return null;
+    const fid = $("#t-fazenda").value, f = lerFazendas().find((x) => x.id === fid);
+    const salvo = estado.talhaoId ? lerTalhoes().find((x) => x.id === estado.talhaoId) : null;
+    return { u, nome: $("#t-nome").value.trim() || "Talhão sem nome", fazenda: f ? f.nome : "", prop: f ? f.proprietario : "",
+      mun: $("#t-mun").value.trim(), uf: $("#t-uf").value, salvo, med: medirPoligono(estado.pts) };
+  }
+
+  function renderResultado() {
+    const d = dadosResultado();
+    $("#r-vazio").hidden = !!d; $("#r-conteudo").hidden = !d;
+    ["#r-docx", "#r-xlsx"].forEach((id) => { $(id).disabled = !d; });
+    if (!d) { $("#t-res").textContent = "Resultado do talhão"; $("#r-sub").textContent = ""; return; }
+    const u = d.u;
+    if (!estado.res) estado.res = { unid: "ha", sel: u.lista.indexOf(u.melhor), equipe: u.equipe };
+    $("#t-res").textContent = d.nome;
+    $("#r-sub").textContent = [d.fazenda, d.prop && "Proprietário: " + d.prop, d.mun && d.mun + (d.uf ? "/" + d.uf : ""),
+      u.esp === "arabica" ? "Arábica" : "Conilon", d.salvo ? "Salvo em " + new Date(d.salvo.data).toLocaleDateString("pt-BR") : "Ainda não salvo"].filter(Boolean).join(" · ");
+
+    // números principais
+    const m = u.melhor, dif = u.atual ? (m.med - u.atual) / u.atual * 100 : null;
+    $("#r-herois").innerHTML =
+      '<div class="metrica"><span class="rotulo">Área</span><b class="num">' + fmt(u.areaHa, 2) + ' <small>ha</small></b><p>≈ ' + fmt(u.areaHa / 4.84, 2) + " alqueires mineiros · " + fmt(u.perim, 0) + " m de perímetro</p></div>" +
+      '<div class="metrica"><span class="rotulo">Aptidão climática</span><b><span class="chip ' + u.apt.nivel + '">' + u.apt.rotulo + "</span></b><p>" + u.apt.motivo + " · " + fmt(u.t, 1) + " °C</p></div>" +
+      '<div class="metrica"><span class="rotulo">Melhor cenário</span><b class="num">' + fmt(m.med, 0) + ' <small>sc/ha</small></b><p>' + m.nome + " · faixa de " + fmt(m.lo, 0) + " a " + fmt(m.hi, 0) + " sc/ha</p></div>" +
+      '<div class="metrica res-destaque"><span class="rotulo">Produção estimada</span><b class="num">' + fmt(m.total, 0) + ' <small>sacas</small></b><p>' +
+      (dif != null ? (dif >= 0 ? "+" : "") + fmt(dif, 0) + "% sobre a produção atual (" + fmt(u.atual, 0) + " sc/ha)" : "No talhão inteiro, por safra") + "</p></div>";
+
+    $("#r-croqui").innerHTML = croquiSvg(estado.pts, u.areaHa, d.med.lados);
+
+    // condições do talhão
+    const ideal = u.esp === "arabica" ? [18, 22] : [22, 26];
+    const tem = u.impl.length ? u.impl.map(nomeImpl).join(", ") : "Nenhuma (colheita manual)";
+    $("#r-cond").innerHTML =
+      '<div class="cond"><div class="cond-cab"><span>Temperatura média</span><b>' + fmt(u.t, 1) + " °C</b></div>" +
+      regua({ min: 14, max: 30, valor: u.t, minTxt: "14 °C", maxTxt: "30 °C", rotulo: "Temperatura " + fmt(u.t, 1) + " °C; ideal de " + ideal[0] + " a " + ideal[1] + " °C",
+        faixas: [{ de: ideal[0], ate: ideal[1], cls: "ideal" }] }) +
+      '<small class="mudo">Faixa ideal para ' + (u.esp === "arabica" ? "arábica" : "conilon") + ": " + ideal[0] + " a " + ideal[1] + " °C</small></div>" +
+      '<div class="cond"><div class="cond-cab"><span>Declividade</span><b>' + fmt(u.declive, 0) + "%</b></div>" +
+      regua({ min: 0, max: 40, valor: u.declive, minTxt: "0%", maxTxt: "40%", rotulo: "Declividade " + fmt(u.declive, 0) + "%",
+        faixas: [{ de: 0, ate: COLHEITA.decliveMax, cls: "ideal" }, { de: COLHEITA.decliveMax, ate: 30, cls: "meio" }],
+        marcas: [{ v: COLHEITA.decliveMax, rot: COLHEITA.decliveMax + "%" }, { v: 30, rot: "30%" }] }) +
+      '<small class="mudo">Até ' + COLHEITA.decliveMax + "% a colhedora trabalha normalmente; de " + COLHEITA.decliveMax + "% a 30% fica mais lenta; acima de 30% não é indicada.</small></div>" +
+      '<dl class="cond-lista"><dt>Altitude</dt><dd>' + fmt(u.alt, 0) + " m</dd><dt>Irrigação</dt><dd>" + (u.irrig ? "Sim" : "Não") + "</dd>" +
+      "<dt>Produção atual</dt><dd>" + (u.atual ? fmt(u.atual, 0) + " sc/ha" : "Lavoura nova ou sem produção") + "</dd>" +
+      "<dt>Máquinas</dt><dd>" + tem + "</dd></dl>";
+
+    document.querySelectorAll("#r-unid button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === estado.res.unid)));
+    $("#r-equipe").value = estado.res.equipe; $("#r-equipe-v").textContent = estado.res.equipe;
+    pintarCenarios(); pintarColheitaSim();
+    $("#r-notas").innerHTML = notasColheita(u).map((n) => "<li>" + n.replace(/\[(\d+)\]/g, '<a href="#ref-$1" data-ref="$1">[$1]</a>') + "</li>").join("");
+  }
+
+  // Gráfico de barras horizontais: produtividade (mediana) com a faixa esperada e a produção atual.
+  function pintarCenarios() {
+    const u = estado.ultimo, r = estado.res, k = r.unid === "talhao" ? u.areaHa : 1, un = r.unid === "talhao" ? "sacas" : "sc/ha";
+    const max = Math.max(...u.lista.map((c) => c.hi * k), u.atual * k) * 1.06;
+    const pct = (v) => (v / max * 100).toFixed(2) + "%";
+    $("#r-grafico").innerHTML = u.lista.map((c, i) =>
+      '<button type="button" class="rg-linha' + (i === r.sel ? " sel" : "") + (c.bloq ? " bloq" : "") + '" data-i="' + i + '" aria-pressed="' + (i === r.sel) + '">' +
+      '<span class="rg-nome"><b>' + c.nome + "</b><small>" + fmt(c.e[0], 1) + " × " + fmt(c.e[1], 1) + " m" +
+      (c === u.melhor ? " · maior produção" : c.bloq ? " · requer irrigação" : "") + "</small></span>" +
+      '<span class="rg-trilho"><span class="rg-faixa" style="left:' + pct(c.lo * k) + ";width:" + pct((c.hi - c.lo) * k) + '"></span>' +
+      '<span class="rg-barra" style="width:' + pct(c.med * k) + '"></span>' +
+      (u.atual ? '<span class="rg-atual" style="left:' + pct(u.atual * k) + '"></span>' : "") + "</span>" +
+      '<span class="rg-valor">' + fmt(c.med * k, 0) + " <small>" + un + "</small></span></button>").join("");
+    $("#r-legenda").innerHTML = '<span><i class="lg-barra"></i>Produtividade esperada</span><span><i class="lg-faixa"></i>Faixa possível</span>' +
+      (u.atual ? '<span><i class="lg-atual"></i>Produção atual: ' + fmt(u.atual * k, 0) + " " + un + "</span>" : "");
+    pintarDetalhe();
+  }
+
+  function pintarDetalhe() {
+    const u = estado.ultimo, c = u.lista[estado.res.sel], a = u.areaHa;
+    const col = colheitaCenario(c, a, u.declive, estado.res.equipe, u.impl);
+    const dif = u.atual ? c.med - u.atual : null;
+    $("#r-detalhe").innerHTML = '<div class="rd-cab"><h3>' + c.nome + "</h3>" +
+      (c === u.melhor ? '<span class="chip">Maior produção</span>' : "") + (c.bloq ? '<span class="chip atencao">Requer irrigação</span>' : "") + "</div>" +
+      (c.bloq ? '<p class="rd-aviso">Este cenário depende de irrigação, e o talhão está marcado sem irrigação. Os números abaixo valem só se a área for irrigada.</p>' : "") +
+      '<dl class="rd-grade">' +
+      "<div><dt>Espaçamento</dt><dd>" + fmt(c.e[0], 1) + " × " + fmt(c.e[1], 1) + " m</dd></div>" +
+      "<div><dt>Plantas por hectare</dt><dd>" + fmt(c.pl) + "</dd></div>" +
+      "<div><dt>Mudas para o talhão</dt><dd>" + fmt(c.mudas) + " <small>(com 5% de replantio)</small></dd></div>" +
+      "<div><dt>Produtividade esperada</dt><dd>" + fmt(c.med, 0) + " sc/ha <small>(" + fmt(c.lo, 0) + " a " + fmt(c.hi, 0) + ")</small></dd></div>" +
+      "<div><dt>Produção no talhão</dt><dd>" + fmt(c.total, 0) + " sacas <small>(" + fmt(c.lo * a, 0) + " a " + fmt(c.hi * a, 0) + ")</small></dd></div>" +
+      "<div><dt>Comparado ao atual</dt><dd>" + (dif == null ? "Sem produção atual para comparar"
+        : (dif >= 0 ? "+" : "") + fmt(dif, 0) + " sc/ha <small>(" + (dif >= 0 ? "+" : "") + fmt(dif / u.atual * 100, 0) + "%, " + (dif >= 0 ? "+" : "") + fmt(dif * a, 0) + " sacas)</small>") + "</dd></div>" +
+      "<div><dt>Colheita indicada</dt><dd>" + col.rotulo + (col.motivo ? "<small>" + col.motivo + "</small>" : "") + "</dd></div>" +
+      "<div><dt>Tempo de colheita</dt><dd>" + diasTxt(col.dias) + " <small>(" + (col.sis === "mec" ? "uma colhedora" : estado.res.equipe + " pessoas") + ")</small></dd></div>" +
+      "<div><dt>Custo vs. colheita manual</dt><dd>" + col.custo + "</dd></div></dl>";
+  }
+
+  // Dias de colheita por cenário com a equipe escolhida, comparados à janela de colheita.
+  function pintarColheitaSim() {
+    const u = estado.ultimo, eq = estado.res.equipe;
+    const lista = u.lista.map((c) => Object.assign({}, c, { col: colheitaCenario(c, u.areaHa, u.declive, eq, u.impl) }));
+    const max = Math.max(COLHEITA.janela * 1.25, ...lista.map((c) => c.col.dias));
+    const pct = (v) => (Math.min(v, max) / max * 100).toFixed(2) + "%";
+    $("#r-dias").innerHTML = lista.map((c, i) => {
+      const fora = c.col.dias > COLHEITA.janela;
+      return '<div class="rdias' + (i === estado.res.sel ? " sel" : "") + '"><span class="rdias-nome">' + c.nome + "<small>" + c.col.rotulo + "</small></span>" +
+        '<span class="rdias-trilho"><span class="rdias-barra' + (fora ? " fora" : "") + '" style="width:' + pct(c.col.dias) + '"></span>' +
+        '<span class="rdias-janela" style="left:' + pct(COLHEITA.janela) + '"></span></span>' +
+        '<span class="rdias-valor"><b>' + diasTxt(c.col.dias) + '</b><span class="chip ' + (fora ? "risco" : "") + '">' + (fora ? "Passa da janela" : "Dentro da janela") + "</span></span></div>";
+    }).join("") + '<p class="mudo res-ajuda"><i class="lg-janela"></i>Janela usual de colheita: cerca de ' + COLHEITA.janela + " dias (maio a agosto)." +
+      (lista.some((c) => c.col.sis === "mec") ? " Na colheita com colhedora, o tempo depende da máquina, não da equipe." : "") + "</p>";
+    renderColheita(Object.assign({}, u, { lista, melhor: lista[u.lista.indexOf(u.melhor)], equipe: eq }));
+  }
+
+  function iniciarResultado() {
+    $("#r-grafico").addEventListener("click", (e) => {
+      const b = e.target.closest(".rg-linha"); if (!b) return;
+      estado.res.sel = +b.dataset.i; pintarCenarios(); pintarColheitaSim();
+    });
+    $("#r-unid").addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-v]"); if (!b) return;
+      estado.res.unid = b.dataset.v;
+      document.querySelectorAll("#r-unid button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      pintarCenarios();
+    });
+    $("#r-equipe").addEventListener("input", () => {
+      estado.res.equipe = +$("#r-equipe").value; $("#r-equipe-v").textContent = estado.res.equipe;
+      pintarDetalhe(); pintarColheitaSim();
+    });
+    // dica ao passar o mouse sobre as barras
+    const dica = $("#r-dica");
+    $("#r-grafico").addEventListener("mousemove", (e) => {
+      const b = e.target.closest(".rg-linha"); if (!b) { dica.hidden = true; return; }
+      const u = estado.ultimo, c = u.lista[+b.dataset.i];
+      dica.innerHTML = "<b>" + c.nome + "</b><br>Esperado: " + fmt(c.med, 0) + " sc/ha<br>Faixa: " + fmt(c.lo, 0) + " a " + fmt(c.hi, 0) + " sc/ha<br>No talhão: " + fmt(c.total, 0) + " sacas";
+      dica.hidden = false;
+      const x = Math.min(e.clientX + 14, window.innerWidth - dica.offsetWidth - 8), y = e.clientY + 14;
+      dica.style.left = x + "px"; dica.style.top = y + "px";
+    });
+    $("#r-grafico").addEventListener("mouseleave", () => { dica.hidden = true; });
+    $("#r-docx").addEventListener("click", () => exportar("docx"));
+    $("#r-xlsx").addEventListener("click", () => exportar("xlsx"));
   }
 
   // ---------- localização em tempo real (GPS do aparelho) ----------
@@ -939,6 +1116,7 @@
       $("#local-fonte").textContent = (t.regiao ? "Região: " + t.regiao + " · " : "") + "Salvo com o talhão"; }
     else preencherLocal(c.lat, c.lng);
     $("#t-salvo-msg").textContent = "Editando talhão salvo. Salvar atualiza o registro.";
+    $("#btn-ver-resultado").hidden = false;
     atualizarRotuloTalhao();
     alternarDesenho(false); redesenhar(true);
     if (estado.mapa) estado.mapa.enquadrar(estado.pts, 0.4);
@@ -955,9 +1133,9 @@
 
   function iniciarTalhao() {
     $("#refs").innerHTML = REFS.map((r, i) => '<li id="ref-' + (i + 1) + '">' + r + "</li>").join("");
-    $("#cenarios").addEventListener("click", (e) => {
+    $("#tela-resultado").addEventListener("click", (e) => {
       const a = e.target.closest("a[data-ref]"); if (!a) return;
-      e.preventDefault(); const li = $("#ref-" + a.dataset.ref);
+      e.preventDefault(); $("#referencias").open = true; const li = $("#ref-" + a.dataset.ref);
       li.scrollIntoView({ behavior: "smooth", block: "center" }); li.style.background = "#eef5e4"; setTimeout(() => (li.style.background = ""), 1600);
     });
     $("#btn-ir").addEventListener("click", () => {
@@ -997,7 +1175,8 @@
       else if (e.target.checked) $("#impl-nenhum").checked = false;
       calcular();
     });
-    $("#colheita").addEventListener("click", (e) => { const a = e.target.closest("a[data-ref]"); if (a) { e.preventDefault(); $("#ref-" + a.dataset.ref).scrollIntoView({ behavior: "smooth", block: "center" }); } });
+    $("#btn-ver-resultado").addEventListener("click", () => { location.hash = "resultado"; });
+    iniciarResultado();
     $("#declive").addEventListener("input", () => { estado.decManual = true; $("#dec-fonte").textContent = "Informada manualmente"; calcular(); });
     $("#equipe").addEventListener("input", calcular);
     const opUF = '<option value="">—</option>' + UFS.map((u) => "<option>" + u + "</option>").join("");
@@ -1077,6 +1256,7 @@
   // o que a pessoa acabou de digitar (nome, fazenda) continua ao desenhar ou colar o contorno.
   function novoTalhao() {
     if (estado.talhaoId) $("#t-nome").value = "";
+    $("#btn-ver-resultado").hidden = true;
     estado.talhaoId = null; estado.decManual = false;
     $("#t-salvo-msg").textContent = "";
     atualizarRotuloTalhao();
@@ -1154,6 +1334,8 @@
     atualizarRotuloTalhao();
     const feito = (i >= 0 ? "Atualizado" : "Salvo") + (fn ? " em " + fn : "");
     toast(reg.nome + (i >= 0 ? " atualizado" : " salvo"));
+    $("#btn-ver-resultado").hidden = false;
+    estado.res = null; // novo cálculo: o resultado volta a destacar o melhor cenário
     if (!logado()) { $("#t-salvo-msg").textContent = feito + " neste aparelho."; return; }
     $("#t-salvo-msg").textContent = feito + ". Enviando…";
     sincronizar(true).then((ok) => { $("#t-salvo-msg").textContent = feito + (ok ? " na sua conta." : " no aparelho. Envia quando houver conexão."); atualizarRotuloTalhao(); });
@@ -1233,7 +1415,7 @@
           '<h3>Talhões</h3><div class="tabela-caixa"><table class="tabela"><thead><tr><th>Talhão</th><th>Espécie</th><th class="n">Área (ha)</th><th>Aptidão</th><th>Cenário de maior produção</th><th class="n">sc/ha</th><th class="n">Sacas</th><th></th></tr></thead><tbody>' +
           linhas.map((l) => '<tr class="clicavel" data-acao="abrir-talhao" data-id="' + l.t.id + '"><td><b>' + esc(l.t.nome) + "</b></td><td>" + (l.t.especie === "arabica" ? "Arábica" : "Conilon") + '</td><td class="n">' + fmt(l.t.area, 2) + "</td><td>" + l.apt + "</td><td>" + l.cenario +
             '</td><td class="n">' + fmt(l.scha, 0) + '</td><td class="n">' + fmt(l.producao, 0) + '</td><td class="n"><div class="linha" style="justify-content:flex-end;flex-wrap:nowrap">' +
-            '<button class="btn peq" type="button" data-acao="abrir-talhao" data-id="' + l.t.id + '">Abrir análise</button><button class="btn peq perigo" type="button" data-acao="excluir-talhao" data-id="' + l.t.id + '">Excluir</button></div></td></tr>').join("") +
+            '<button class="btn pri peq" type="button" data-acao="resultado-talhao" data-id="' + l.t.id + '">Ver resultado</button><button class="btn peq" type="button" data-acao="abrir-talhao" data-id="' + l.t.id + '">Editar</button><button class="btn peq perigo" type="button" data-acao="excluir-talhao" data-id="' + l.t.id + '">Excluir</button></div></td></tr>').join("") +
           "</tbody></table></div>" +
           '<h3>Produção estimada por talhão</h3><div class="janelas">' +
           linhas.map((l) => '<div class="barra-h"><span>' + esc(l.t.nome) + '</span><div class="trilho"><span class="' + (l === melhor ? "melhor" : "") + '" style="width:' + (l.producao / maxProd * 100) + '%"></span></div><b class="num">' + fmt(l.producao, 0) + " sc</b></div>").join("") + "</div>"
@@ -1341,6 +1523,7 @@
       else if (acao === "editar") abrirFormFazenda(id);
       else if (acao === "novo-talhao") { estado.fazendaPre = id; location.hash = "talhao"; }
       else if (acao === "xlsx") planilhaFazenda(id, b);
+      else if (acao === "resultado-talhao") { const t = lerTalhoes().find((x) => String(x.id) === id); if (t) abrirResultadoDe(t); }
       else if (acao === "abrir-talhao") { const t = lerTalhoes().find((x) => String(x.id) === id); if (t) { location.hash = "talhao"; setTimeout(() => carregarTalhao(t), 80); } }
       else if (acao === "excluir" || acao === "excluir-talhao") {
         if (!b.classList.contains("confirmar")) { b.classList.add("confirmar"); b.textContent = "Confirmar exclusão"; setTimeout(() => { if (b.isConnected) { b.classList.remove("confirmar"); b.textContent = acao === "excluir" ? "Excluir fazenda" : "Excluir"; } }, 4000); return; }

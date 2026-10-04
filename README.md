@@ -4,6 +4,7 @@ App web para agrônomos e consultores de café (AERA · Agricultural Digital Eng
 
 - **Início:** saudação, clima atual e previsão de 7 dias (Open-Meteo), janelas de manejo.
 - **Talhão:** formulário em 3 blocos (talhão, localização e contorno, lavoura). Delimitação no mapa, por GPS ou colando coordenadas; área e perímetro no elipsoide WGS 84; município/UF, altitude, temperatura e declividade preenchidos pela coordenada; aptidão climática; 4 cenários de plantio; colheita conforme as máquinas da fazenda.
+- **Resultado:** depois de salvar o talhão, "Visualizar resultado" abre uma página com os números principais, o contorno, as condições do talhão, a comparação interativa dos cenários e uma simulação de colheita pelo tamanho da equipe.
 - **Fazendas:** cadastro, talhões por fazenda com mapa e planilha da fazenda.
 - **Notícias:** clima e cafeicultura (teste).
 - **Exportação:** relatório .docx e planilha .xlsx gerados no navegador, nomeados `AERA_<Tipo>_<fazenda>_<talhão>_<proprietário>_<AAAA-MM-DD>`.

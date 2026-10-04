@@ -401,6 +401,7 @@
 
         <div class="form-acoes">
           <button class="btn acao" id="btn-salvar2" type="button">Salvar talhão</button>
+          <button class="btn pri" id="btn-ver-resultado" type="button" hidden>Visualizar resultado</button>
           <span class="mudo" id="t-salvo-msg"></span>
         </div>
       </form>
@@ -428,18 +429,80 @@
       </div>
     </div>
 
-    <section class="bloco" aria-labelledby="t-cen">
-      <div class="bloco-cab">
-        <h2 id="t-cen">Cenários de plantio</h2>
-        <span class="mudo" style="font-size:13px">Sacas de 60 kg por safra · detalhes no relatório</span>
+  </section>
+  <!-- ================= RESULTADO DO TALHÃO ================= -->
+  <section class="tela" id="tela-resultado" aria-labelledby="t-res" hidden>
+    <div class="bloco-cab">
+      <div>
+        <p class="rotulo">Resultado da análise</p>
+        <h1 id="t-res">Talhão</h1>
+        <p class="mudo" id="r-sub"></p>
       </div>
-      <div id="cenarios" class="cenarios"></div>
-      <div id="colheita" class="colheita"></div>
-      <details class="refs-caixa" id="referencias">
-        <summary>Referências</summary>
-        <ol class="refs" id="refs"></ol>
-      </details>
-    </section>
+      <div class="linha">
+        <a class="btn peq" href="#talhao">Editar dados</a>
+        <button class="btn pri peq" id="r-docx" type="button">Relatório (.docx)</button>
+        <button class="btn pri peq" id="r-xlsx" type="button">Planilha (.xlsx)</button>
+      </div>
+    </div>
+
+    <div class="bloco res-vazio" id="r-vazio" hidden>
+      <p>Nenhum talhão analisado ainda. Preencha e salve um talhão para ver o resultado aqui.</p>
+      <div class="linha"><a class="btn acao" href="#talhao">Preencher talhão</a></div>
+    </div>
+
+    <div class="res" id="r-conteudo">
+      <div class="metricas res-herois" id="r-herois"></div>
+
+      <div class="res-grade">
+        <section class="bloco" aria-labelledby="t-r-mapa">
+          <h2 id="t-r-mapa">Contorno do talhão</h2>
+          <div class="res-croqui" id="r-croqui"></div>
+        </section>
+        <section class="bloco" aria-labelledby="t-r-cond">
+          <h2 id="t-r-cond">Condições do talhão</h2>
+          <div class="res-cond" id="r-cond"></div>
+        </section>
+      </div>
+
+      <section class="bloco" aria-labelledby="t-r-cen">
+        <div class="bloco-cab">
+          <div>
+            <h2 id="t-r-cen">Compare os cenários de plantio</h2>
+            <p class="mudo res-ajuda">Toque em um cenário para ver os detalhes. Sacas de 60 kg por safra.</p>
+          </div>
+          <div class="seg" role="group" aria-label="Unidade" id="r-unid">
+            <button type="button" data-v="ha" aria-pressed="true">Por hectare</button>
+            <button type="button" data-v="talhao" aria-pressed="false">Talhão inteiro</button>
+          </div>
+        </div>
+        <div class="res-grafico" id="r-grafico"></div>
+        <div class="res-legenda" id="r-legenda"></div>
+        <div class="res-detalhe" id="r-detalhe" aria-live="polite"></div>
+      </section>
+
+      <section class="bloco" aria-labelledby="t-r-col">
+        <div>
+          <h2 id="t-r-col">Simule a colheita</h2>
+          <p class="mudo res-ajuda">Mude o tamanho da equipe e veja quantos dias a colheita leva em cada cenário, com as máquinas informadas.</p>
+        </div>
+        <div class="res-sim">
+          <label for="r-equipe">Pessoas na colheita <b id="r-equipe-v">12</b></label>
+          <input type="range" id="r-equipe" min="1" max="80" step="1" value="12">
+        </div>
+        <div class="res-dias" id="r-dias"></div>
+        <div id="colheita" class="colheita"></div>
+      </section>
+
+      <section class="bloco" aria-labelledby="t-r-obs">
+        <h2 id="t-r-obs">O que observar</h2>
+        <ul class="res-notas" id="r-notas"></ul>
+        <details class="refs-caixa" id="referencias">
+          <summary>Referências</summary>
+          <ol class="refs" id="refs"></ol>
+        </details>
+      </section>
+    </div>
+    <div class="res-dica" id="r-dica" role="tooltip" hidden></div>
   </section>
 </main>
 <footer class="rodape">AERA · Agricultural Digital Engineering · protótipo para o hackathon</footer>
